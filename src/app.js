@@ -41,20 +41,6 @@ app.use("/api/addresses", addressRoutes);
 app.use("/api/discount-coupons", discountCouponRoutes);
 app.use("/api/shipping", shippingRoutes);
 
-// import data
-const {
-  cloneData,
-  getCategories,
-  importCategory,
-  importProduct,
-  importUser
-} = require("./scripts/generateData");
-
-app.get("/data/get-data", cloneData);
-app.get("/data/get-categories", getCategories);
-app.get("/data/import-category", importCategory);
-app.get("/data/import-product", importProduct);
-app.get("/data/import-users", importUser);
 
 app.use(notFound);
 app.use(errorHandler);
