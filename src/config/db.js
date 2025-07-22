@@ -1,6 +1,7 @@
-require("dotenv").config();
-const mongoose = require("mongoose");
-const cloudinary = require("cloudinary");
+import dotenv from 'dotenv'
+dotenv.config()
+import mongoose from 'mongoose'
+import cloudinary from "cloudinary";
 
 const connectDB = async () => {
   try {
@@ -32,4 +33,4 @@ const connectCloudinary = async () => {
   }
 };
 
-module.exports = { connectDB, connectCloudinary };
+export { connectDB, connectCloudinary };

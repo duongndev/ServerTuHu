@@ -1,6 +1,7 @@
-const router = require("express").Router();
-const cartCtrl = require("../controllers/cart.controller");
-const { protect, authorize } = require("../middlewares/auth.middleware");
+import express from "express";
+const router = express.Router();
+import * as cartCtrl from "../controllers/cart.controller.js"; 
+import { protect, authorize } from "../middlewares/auth.middleware.js";
 
 router.use(protect);
 
@@ -14,4 +15,4 @@ router.post("/decrease", authorize("user"), cartCtrl.decreaseQuantity);
 
 router.delete("/remove", authorize("user"), cartCtrl.removeFromCart);
 
-module.exports = router;
+export default router;

@@ -1,6 +1,4 @@
-const mongoose = require("mongoose");
-const AutoIncrement = require("mongoose-sequence")(mongoose);
-
+import mongoose from "mongoose";
 const otpSchema = new mongoose.Schema(
   {
     user_id: { type: mongoose.Schema.ObjectId, ref: "User" },
@@ -14,9 +12,8 @@ const otpSchema = new mongoose.Schema(
   }
 );
 
-otpSchema.plugin(AutoIncrement, { inc_field: "id", id: "otp_seq" });
 otpSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
-module.exports = mongoose.model("OTP", otpSchema);
+export default mongoose.model("OTP", otpSchema);

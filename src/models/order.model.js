@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const OrderSchema = new mongoose.Schema(
   {
@@ -136,4 +136,4 @@ OrderSchema.virtual("couponInfo", {
 OrderSchema.set("toJSON", { virtuals: true });
 OrderSchema.set("toObject", { virtuals: true });
 
-module.exports = mongoose.model("Order", OrderSchema);
+export default mongoose.model("Order", OrderSchema);

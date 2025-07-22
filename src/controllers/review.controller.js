@@ -1,7 +1,7 @@
-const reviewsModel = require('../models/review.model');
-const productModel = require('../models/product.model');
-const userModel = require('../models/user.model');
-const { standardResponse } = require('../utils/utility.function');
+import reviewsModel from '../models/review.model.js';
+import productModel from '../models/product.model.js';
+import userModel from '../models/user.model.js';
+import { standardResponse } from '../utils/utility.function.js';
 
 // Tạo review mới cho sản phẩm
 const createReview = async (req, res) => {
@@ -89,7 +89,7 @@ const deleteReview = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   createReview,
   getReviewsByProduct,
   getReviewsByUser,

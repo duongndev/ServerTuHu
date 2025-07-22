@@ -1,5 +1,5 @@
-const categoryModel = require("../models/category.model");
-const { standardResponse } = require("../utils/utility.function");
+import categoryModel from "../models/category.model.js";
+import { standardResponse } from "../utils/utility.function.js"; 
 
 // Tạo mới category
 const createCategory = async (req, res) => {
@@ -78,7 +78,7 @@ const getCategoryById = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   createCategory,
   updateCategory,
   deleteCategory,

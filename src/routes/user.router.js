@@ -1,14 +1,24 @@
-const router = require('express').Router();
-const userController = require('../controllers/user.controller');
-const { protect, authorize } = require('../middlewares/auth.middleware');
+import express from 'express';
+const router = express.Router();
+import {
+    checkUser,
+    getAllUsers,
+    getUsersByRole,
+    getUserById,
+    updateUser,
+    updateUserPassword,
+    deleteUser,
+    updateAvatar
+} from '../controllers/user.controller.js';
+import { protect, authorize } from '../middlewares/auth.middleware.js';
 
-router.get('/all', protect, authorize('admin'), userController.getAllUsers);
-router.get('/role', protect, authorize('admin'), userController.getUsersByRole);
-router.post('/me/avatar', protect, userController.updateAvatar);
-router.patch('/password', protect, userController.updateUserPassword);
-router.get('/me/info', protect, userController.checkUser);
-router.get('/:id', protect, userController.getUserById);
-router.put('/:id', protect, userController.updateUser);
-router.delete('/:id', protect, authorize('admin'), userController.deleteUser);
+router.get('/all', protect, authorize('admin'), getAllUsers);
+router.get('/role', protect, authorize('admin'), getUsersByRole);
+router.post('/me/avatar', protect, updateAvatar);
+router.patch('/password', protect, updateUserPassword);
+router.get('/me/info', protect, checkUser);
+router.get('/:id', protect, getUserById);
+router.put('/:id', protect, updateUser);
+router.delete('/:id', protect, authorize('admin'), deleteUser);
 
-module.exports = router; 
+export default router; 

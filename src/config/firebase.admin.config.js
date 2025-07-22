@@ -1,5 +1,6 @@
-const admin = require("firebase-admin");
-require('dotenv').config();
+import admin from 'firebase-admin'
+import dotenv from 'dotenv'
+dotenv.config()
 // Firebase Admin SDK configuration
 
 // Lấy cấu hình Firebase từ biến môi trường trong file .env
@@ -25,4 +26,4 @@ admin.initializeApp({
   credential: admin.credential.cert(firebaseConfigFromEnv),
 });
 
-module.exports = admin;
+export default admin;

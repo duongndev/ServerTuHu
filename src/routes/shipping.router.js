@@ -1,7 +1,8 @@
-const router = require('express').Router();
-const shippingController = require('../controllers/shipping.controller');
-const { protect } = require('../middlewares/auth.middleware');
+import express from 'express';
+const router = express.Router();
+import * as shippingController from '../controllers/shipping.controller.js';
+import { protect } from '../middlewares/auth.middleware.js';
 
 router.get('/fee/:addressId', protect, shippingController.calculateInternalShippingFee);
 
-module.exports = router; 
+export default router; 

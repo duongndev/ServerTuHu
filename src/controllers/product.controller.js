@@ -1,12 +1,12 @@
-const productModel = require("../models/product.model");
-const categoryModel = require("../models/category.model");
-const { standardResponse } = require("../utils/utility.function");
-const {
+import productModel from "../models/product.model.js";
+import categoryModel from "../models/category.model.js";
+import { standardResponse } from "../utils/utility.function.js";
+import {
   findCategoryOr404,
   findProductOr404,
-} = require("../utils/validate.function");
-const cloudinary = require("../config/cloudinary.config");
-const fs = require("fs/promises");
+} from "../utils/validate.function.js";
+import cloudinary from "../config/cloudinary.config.js";
+import fs from "fs/promises";
 
 // Tạo sản phẩm mới
 const createProduct = async (req, res) => {
@@ -353,7 +353,7 @@ const getProductsNew = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   createProduct,
   updateProduct,
   deleteProduct,

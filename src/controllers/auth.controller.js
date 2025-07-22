@@ -1,13 +1,13 @@
-const userModel = require("../models/user.model");
-const {
+import userModel from "../models/user.model.js";
+
+import {
   hashPassword,
   comparePassword,
   newToken,
   standardResponse,
-  validateEmail,
-} = require("../utils/utility.function");
-const OTPModel = require("../models/otp.model");
-const { sendOTPEmail } = require("../service/email.service");
+} from "../utils/utility.function.js";
+import OTPModel from "../models/otp.model.js";
+import { sendOTPEmail } from "../service/email.service.js";
 
 // Đăng nhập
 const login = async (req, res) => {
@@ -40,6 +40,7 @@ const login = async (req, res) => {
       });
     }
     const token = await newToken(user);
+    res.cookie('token', token, { httpOnly: true }) // ✅ set cookie JWT
     return standardResponse(res, 200, {
       success: true,
       message: "Đăng nhập thành công",
@@ -215,4 +216,4 @@ const verifyOTP = async (req, res) => {
   }
 };
 
-module.exports = { login, register, logout, updateFCMToken, forgotPassword, verifyOTP };
+export { login, register, logout, updateFCMToken, forgotPassword, verifyOTP };

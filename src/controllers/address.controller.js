@@ -1,6 +1,6 @@
-const { default: axios } = require("axios");
-const addressModel = require("../models/address.model");
-const { standardResponse } = require("../utils/utility.function");
+import axios from "axios";
+import addressModel from "../models/address.model.js";
+import { standardResponse } from "../utils/utility.function.js";
 
 // Tạo mới địa chỉ
 const createAddress = async (req, res) => {
@@ -251,7 +251,7 @@ const getWards = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   createAddress,
   getAddressesByUser,
   getAllAddresses,

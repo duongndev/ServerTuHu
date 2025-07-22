@@ -1,5 +1,5 @@
-const { standardResponse } = require("../utils/utility.function");
-const addressModel = require("../models/address.model");
+import { standardResponse } from "../utils/utility.function.js";
+import addressModel from "../models/address.model.js";
 
 /**
  * API: Tính phí vận chuyển nội bộ Hà Nội dựa trên zone
@@ -74,4 +74,4 @@ const calculateInternalShippingFee = async (req, res) => {
   }
 };
 
-module.exports = { calculateInternalShippingFee };
+export { calculateInternalShippingFee };

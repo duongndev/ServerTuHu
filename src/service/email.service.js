@@ -1,7 +1,9 @@
-const nodemailer = require("nodemailer");
-require("dotenv").config();
-const fs = require("fs");
-const path = require("path");
+import nodemailer from "nodemailer";
+import dotenv from 'dotenv';
+import fs from "fs";
+import path from "path";
+
+dotenv.config();
 // Cấu hình transporter cho Nodemailer (dùng Gmail)
 const transporter = nodemailer.createTransport({
   service: process.env.MAIL_SERVICE,
@@ -53,4 +55,4 @@ const sendMessageEmail = (to, subject, message) => {
   });
 };
 
-module.exports = { sendOTPEmail, sendMessageEmail };
+export { sendOTPEmail, sendMessageEmail };

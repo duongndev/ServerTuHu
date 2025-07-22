@@ -1,7 +1,7 @@
-const productModel = require("../models/product.model");
-const cartModel = require("../models/cart.model");
-const { standardResponse } = require("../utils/utility.function");
-const userModel = require("../models/user.model");
+import productModel from "../models/product.model.js";
+import cartModel from "../models/cart.model.js";
+import { standardResponse } from "../utils/utility.function.js";
+import userModel from "../models/user.model.js";
 
 // Helper: Định dạng chi tiết sản phẩm trong giỏ hàng
 function formatCartItems(items) {
@@ -284,8 +284,7 @@ const removeFromCart = async (req, res) => {
     });
   }
 };
-
-module.exports = {
+export {
   addToCart,
   getUserCart,
   increaseQuantity,

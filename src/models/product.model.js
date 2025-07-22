@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -67,4 +67,4 @@ productSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
-module.exports = mongoose.model("Product", productSchema);
+export default mongoose.model("Product", productSchema);

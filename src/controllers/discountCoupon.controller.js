@@ -1,6 +1,6 @@
-const discountCouponModel = require("../models/discountCoupon.model");
-const { standardResponse } = require("../utils/utility.function");
-const { sendToAllUsers } = require("../service/notification.service");
+import discountCouponModel from "../models/discountCoupon.model.js";
+import { standardResponse } from "../utils/utility.function.js"; 
+import { sendToAllUsers } from "../service/notification.service.js";
 
 // Tạo mã giảm giá mới
 const createCoupon = async (req, res) => {
@@ -109,7 +109,7 @@ const applyCoupon = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   createCoupon,
   getAllCoupons,
   getCouponById,

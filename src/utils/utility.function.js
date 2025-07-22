@@ -1,5 +1,5 @@
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 const newToken = async (user) => {
   return await jwt.sign(
@@ -38,7 +38,7 @@ function validateEmail(email) {
   return typeof email === 'string' && /.+@.+\..+/.test(email);
 }
 
-module.exports = {
+export {
   newToken,
   verifyToken,
   hashPassword,

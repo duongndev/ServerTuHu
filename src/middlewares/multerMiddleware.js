@@ -1,5 +1,5 @@
-const path = require("path");
-const multer = require("multer");
+import path from "path";
+import multer from "multer";
 
 // Middleware configuration object
 const upload = multer({
@@ -36,4 +36,4 @@ const upload = multer({
   },
 });
 
-module.exports = upload;
+export default upload;

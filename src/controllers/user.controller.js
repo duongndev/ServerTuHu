@@ -1,7 +1,7 @@
-const userModel = require("../models/user.model");
-const { standardResponse } = require("../utils/utility.function");
-const cloudinary = require("../config/cloudinary.config");
-const fs = require("fs/promises");
+import userModel from "../models/user.model.js";
+import { standardResponse } from "../utils/utility.function.js";
+import cloudinary from "../config/cloudinary.config.js";
+import fs from "fs/promises";
 
 // Lấy tất cả user (ẩn password)
 const getAllUsers = async (req, res) => {
@@ -151,8 +151,7 @@ const updateAvatar = async (req, res) => {
     return standardResponse(res, 500, { success: false, message: error.message });
   }
 };
-
-module.exports = {
+export {
   getAllUsers,
   getUsersByRole,
   getUserById,

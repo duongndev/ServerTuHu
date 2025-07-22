@@ -1,15 +1,22 @@
-const express = require("express");
+import express from "express";
 const app = express();
-const { connectDB, connectCloudinary } = require("../src/config/db");
-const cors = require("cors");
-const { notFound, errorHandler } = require("../src/middlewares/middleware");
-const logger = require("morgan");
-const bodyParser = require("body-parser");
-const cookieParser = require("cookie-parser");
+import { connectDB, connectCloudinary } from "../src/config/db.js";
+import cors from "cors";
+import { notFound, errorHandler } from "../src/middlewares/middleware.js";
+import logger from "morgan";
+import bodyParser from "body-parser";
+import cookieParser from "cookie-parser";
 
-require("dotenv").config();
+import buildAdminRouter from '../src/config/admin.js'
+
+import dotenv from 'dotenv'
+dotenv.config()
 connectDB();
 connectCloudinary();
+
+// Tích hợp AdminJS
+const { adminJs, adminRouter } = buildAdminRouter(app)
+app.use(adminJs.options.rootPath, adminRouter)
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -19,16 +26,16 @@ app.use(logger("dev"));
 app.use(cookieParser());
 
 // routes
-const orderRoutes = require("./routes/order.router");
-const authRoutes = require("./routes/auth.router");
-const userRoutes = require("./routes/user.router");
-const productRoutes = require("./routes/product.router");
-const categoryRoutes = require("./routes/category.router");
-const reviewRoutes = require("./routes/review.router");
-const addressRoutes = require("./routes/address.router");
-const discountCouponRoutes = require("./routes/discountCoupon.router");
-const shippingRoutes = require("./routes/shipping.router");
-const cartRoutes = require("./routes/cart.router");
+import orderRoutes from "./routes/order.router.js";
+import authRoutes from "./routes/auth.router.js";
+import userRoutes from "./routes/user.router.js";
+import productRoutes from "./routes/product.router.js";
+import categoryRoutes from "./routes/category.router.js";
+import reviewRoutes from "./routes/review.router.js";
+import addressRoutes from "./routes/address.router.js";
+import discountCouponRoutes from "./routes/discountCoupon.router.js";
+import shippingRoutes from "./routes/shipping.router.js";
+import cartRoutes from "./routes/cart.router.js";
 
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
@@ -45,4 +52,4 @@ app.use("/api/shipping", shippingRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-module.exports = app;
+export default app;

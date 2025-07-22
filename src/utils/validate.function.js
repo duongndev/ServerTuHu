@@ -1,4 +1,4 @@
-const { standardResponse } = require('./utility.function');
+import { standardResponse } from './utility.function.js';
 // Helper: Kiểm tra tồn tại category
 async function findCategoryOr404(categoryModel, category_id, res) {
   const category = await categoryModel.findOne({ _id: category_id });
@@ -25,7 +25,7 @@ const validateEmail = (email) => {
   return emailRegex.test(email);
 };
 
-module.exports = {
+export {
   findCategoryOr404,
   findProductOr404,
   validateEmail,

@@ -1,18 +1,30 @@
-const router = require('express').Router();
-const productController = require('../controllers/product.controller');
-const { protect, authorize } = require('../middlewares/auth.middleware');
-const upload = require("../middlewares/multerMiddleware");
+import express from 'express';
+const router = express.Router();
+import {
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    getAllProducts,
+    getProductById,
+    getProductByCategoryId,
+    searchProductByName,
+    getProductsFeatured,
+    getProductsSale,
+    getProductsNew
+} from '../controllers/product.controller.js';
+import { protect, authorize } from '../middlewares/auth.middleware.js';
+import upload from "../middlewares/multerMiddleware.js";
 
-router.get('/all', productController.getAllProducts);
-router.get('/search', productController.searchProductByName);
-router.get('/featured', productController.getProductsFeatured);
-router.get('/sale', productController.getProductsSale);
-router.get('/new', productController.getProductsNew);
-router.get('/category/:id', productController.getProductByCategoryId);
+router.get('/all', getAllProducts);
+router.get('/search', searchProductByName);
+router.get('/featured', getProductsFeatured);
+router.get('/sale', getProductsSale);
+router.get('/new', getProductsNew);
+router.get('/category/:id', getProductByCategoryId);
 // Đảm bảo thứ tự: protect -> authorize -> upload -> controller
-router.post('/create', protect, authorize('admin'), upload.single("file"), productController.createProduct);
-router.get('/view/:id', productController.getProductById);
-router.put('/update/:id', protect, authorize('admin'), upload.single("file"), productController.updateProduct);
-router.delete('/delete/:id', protect, authorize('admin'), productController.deleteProduct);
+router.post('/create', protect, authorize('admin'), upload.single("file"), createProduct);
+router.get('/view/:id', getProductById);
+router.put('/update/:id', protect, authorize('admin'), upload.single("file"), updateProduct);
+router.delete('/delete/:id', protect, authorize('admin'), deleteProduct);
 
-module.exports = router; 
+export default router; 

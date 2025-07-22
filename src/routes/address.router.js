@@ -1,16 +1,26 @@
-const router = require('express').Router();
-const addressController = require('../controllers/address.controller');
-const { protect } = require('../middlewares/auth.middleware');
+import express from 'express';
+const router = express.Router();
+import {
+    createAddress,
+    getProvince,
+    getWards,
+    getAddressesByUser,
+    getAllAddresses,
+    getAddressById,
+    updateAddress,
+    deleteAddress
+} from '../controllers/address.controller.js';
+import { protect } from '../middlewares/auth.middleware.js';   
 
 
-router.get("/province", addressController.getProvince)
-router.get("/ward", addressController.getWards)
+router.get("/province", getProvince)
+router.get("/ward", getWards)   
 
-router.post('/create', protect, addressController.createAddress);
-router.get('/my', protect, addressController.getAddressesByUser);
-router.get('/all', protect, addressController.getAllAddresses);
-router.get('/:id', protect, addressController.getAddressById);
-router.put('/update/:id', protect, addressController.updateAddress);
-router.delete('/delete/:id', protect, addressController.deleteAddress);
+router.post('/create', protect, createAddress);
+router.get('/my', protect, getAddressesByUser);
+router.get('/all', protect, getAllAddresses);
+router.get('/:id', protect, getAddressById);
+router.put('/update/:id', protect, updateAddress);
+router.delete('/delete/:id', protect, deleteAddress);
 
-module.exports = router; 
+export default router; 

@@ -1,14 +1,14 @@
-const productModel = require("../models/product.model");
-const userModel = require("../models/user.model");
-const cartModel = require("../models/cart.model");
-const orderModel = require("../models/order.model");
-const discountCouponModel = require("../models/discountCoupon.model");
-const {
+import productModel from "../models/product.model.js";
+import userModel from "../models/user.model.js";
+import cartModel from "../models/cart.model.js";
+import orderModel from "../models/order.model.js";
+import discountCouponModel from "../models/discountCoupon.model.js";
+import {
   sendToAdmin,
   sendToUser,
   sendToBoth,
-} = require("../service/notification.service");
-const { standardResponse } = require("../utils/utility.function");
+} from "../service/notification.service.js";
+import { standardResponse } from "../utils/utility.function.js";
 
 // Helper: Chuẩn hóa populate cho order
 const orderPopulate = [
@@ -330,7 +330,7 @@ const getOrdersByStatus = async (req, res) => {
 };
 
 
-module.exports = {
+export {
   createOrder,
   getOrderById,
   updateOrderStatus,

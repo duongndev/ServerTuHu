@@ -1,6 +1,6 @@
-const admin = require("../config/firebase.admin.config");
-const notificationModel = require("../models/notification.model");
-const userModel = require("../models/user.model");
+import admin from "../config/firebase.admin.config.js";
+import notificationModel from "../models/notification.model.js";
+import userModel from "../models/user.model.js";
 
 /**
  * Tạo thông báo cho tất cả nhân viên
@@ -220,7 +220,7 @@ const sendToBoth = async (userId, adminId, notificationData) => {
   }
 };
 
-module.exports = {
+export {
   sendToAllUsers,
   sendToUser,
   sendToAdmin,

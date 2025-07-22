@@ -1,5 +1,5 @@
-const { verifyToken } = require("../utils/utility.function");
-const User = require("../models/user.model");
+import { verifyToken } from "../utils/utility.function.js";
+import User from "../models/user.model.js";
 
 const protect = async (req, res, next) => {
   let token;
@@ -37,7 +37,7 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = {
+export {
   protect,
   authorize,
 };

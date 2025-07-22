@@ -1,6 +1,7 @@
-const router = require('express').Router();
-const discountCouponController = require('../controllers/discountCoupon.controller');
-const { protect, authorize } = require('../middlewares/auth.middleware');
+import express from 'express';
+const router = express.Router();
+import * as discountCouponController from '../controllers/discountCoupon.controller.js';
+import { protect, authorize } from '../middlewares/auth.middleware.js';
 
 router.post('/create', protect, authorize('admin'), discountCouponController.createCoupon);
 router.put('/update/:id', protect, authorize('admin'), discountCouponController.updateCoupon);
@@ -9,4 +10,4 @@ router.get('/all', protect, authorize('admin'), discountCouponController.getAllC
 router.get('/:id', protect, authorize('admin'), discountCouponController.getCouponById);
 router.post('/apply', discountCouponController.applyCoupon);
 
-module.exports = router; 
+export default router; 

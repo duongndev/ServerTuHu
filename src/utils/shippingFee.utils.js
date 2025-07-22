@@ -24,7 +24,7 @@ function getShippingFeeForOrder({ shippingAddress, totalAmount }) {
   return calculateShippingFee(shippingAddress, totalAmount);
 }
 
-module.exports = {
+export {
   calculateShippingFee,
   getShippingFeeForOrder,
 };
