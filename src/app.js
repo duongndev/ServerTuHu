@@ -48,6 +48,12 @@ app.use("/api/addresses", addressRoutes);
 app.use("/api/discount-coupons", discountCouponRoutes);
 app.use("/api/shipping", shippingRoutes);
 
+app.get("/", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "Server is running",
+    });
+});
 
 app.use(notFound);
 app.use(errorHandler);

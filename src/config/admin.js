@@ -10,7 +10,6 @@ import Category from "../models/category.model.js";
 import Order from "../models/order.model.js";
 import DiscountCoupon from "../models/discountCoupon.model.js";
 import Review from "../models/review.model.js";
-import Cart from "../models/cart.model.js";
 import Address from "../models/address.model.js";
 import Notification from "../models/notification.model.js";
 
@@ -31,7 +30,6 @@ const buildAdminRouter = () => {
       Order,
       DiscountCoupon,
       Review,
-      Cart,
       Address,
       Notification,
     ].map((model) => ({
