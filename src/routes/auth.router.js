@@ -6,7 +6,8 @@ import {
     logout,
     register,
     updateFCMToken,
-    verifyOTP
+    verifyOTP,
+    getProfile
 } from '../controllers/auth.controller.js';
 import { protect } from "../middlewares/auth.middleware.js";   
 
@@ -19,6 +20,8 @@ router.post("/update-fcm-token", protect, updateFCMToken);
 router.post('/forgot-password', forgotPassword);
 // Xác thực OTP
 router.post('/verify-otp', verifyOTP);
+
+router.get('/profile', protect, getProfile);
 
 
 export default router; 

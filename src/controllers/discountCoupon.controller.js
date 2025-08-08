@@ -25,11 +25,45 @@ const createCoupon = async (req, res) => {
   }
 };
 
-// Lấy tất cả mã giảm giá
+// Lấy tất cả mã giảm giá với phân trang và lọc
 const getAllCoupons = async (req, res) => {
   try {
-    const coupons = await discountCouponModel.find();
-    return standardResponse(res, 200, { success: true, message: "Lấy danh sách mã giảm giá thành công", data: coupons });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const { isActive, discountType, code } = req.query;
+    let query = {};
+
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    }
+    if (discountType) {
+      query.discountType = discountType;
+    }
+    if (code) {
+      query.code = { $regex: code, $options: 'i' }; // Tìm kiếm không phân biệt chữ hoa chữ thường
+    }
+
+    const totalCoupons = await discountCouponModel.countDocuments(query);
+    const coupons = await discountCouponModel.find(query)
+      .sort({ createdAt: -1 }) // Sắp xếp theo ngày tạo giảm dần
+      .skip(skip)
+      .limit(limit);
+
+    const totalPages = Math.ceil(totalCoupons / limit);
+
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Lấy danh sách mã giảm giá thành công",
+      data: coupons,
+      pagination: {
+        total: totalCoupons,
+        page,
+        limit,
+        totalPages,
+      },
+    });
   } catch (error) {
     return standardResponse(res, 500, { success: false, message: "Lỗi khi lấy danh sách mã giảm giá", error: error.message });
   }

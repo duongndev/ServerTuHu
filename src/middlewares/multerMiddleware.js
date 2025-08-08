@@ -22,7 +22,7 @@ const upload = multer({
     let ext = path.extname(file.originalname);
 
     // List of allowed file extensions
-    const allowedExtensions = [".jpg", ".jpeg", ".webp", ".png", ".mp4"];
+    const allowedExtensions = [".jpg", ".jpeg", ".webp", ".png", ".mp4",".JPG", ".JPEG", ".WEBP", ".PNG", ".MP4"];
 
     // Check if the file extension is in the allowedExtensions array
     if (!allowedExtensions.includes(ext)) {

@@ -136,8 +136,8 @@ const sendToAdmin = async (notificationData) => {
         data: {
           type: notificationData.type,
           click_action: "NOTIFICATION_CLICK",
-          ...(notificationData.orderId && {
-            orderId: notificationData.orderId.toString(),
+          ...(notificationData.order_id && {
+            order_id: notificationData.order_id.toString(),
           }),
         },
         tokens: fcmTokens,

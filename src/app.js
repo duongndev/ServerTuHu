@@ -36,6 +36,10 @@ import addressRoutes from "./routes/address.router.js";
 import discountCouponRoutes from "./routes/discountCoupon.router.js";
 import shippingRoutes from "./routes/shipping.router.js";
 import cartRoutes from "./routes/cart.router.js";
+import notificationRouter from "./routes/notification.router.js";
+import statisticsRouter from "./routes/statistics.router.js";
+import bannerRoutes from "./routes/banner.routes.js";
+
 
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
@@ -47,6 +51,10 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/discount-coupons", discountCouponRoutes);
 app.use("/api/shipping", shippingRoutes);
+app.use("/api/notifications", notificationRouter);
+app.use("/api/statistics", statisticsRouter);
+app.use("/api/banners", bannerRoutes);
+
 
 app.get("/", (req, res) => {
     res.status(200).json({

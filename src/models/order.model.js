@@ -38,24 +38,24 @@ const OrderSchema = new mongoose.Schema(
       required: true,
       default: 0,
     },
-    deliveryFee: {
+    delivery_fee: {
       type: Number,
       required: true,
       default: 0,
     },
-    discountAmount: {
+    discount_amount: {
       type: Number,
       default: 0,
     },
-    couponCode: {
+    coupon_code: {
       type: String,
       default: null,
     },
-    totalPrice: {
+    total_price: {
       type: Number,
       required: true,
       default: function () {
-        return this.subtotal + this.deliveryFee - (this.discountAmount || 0);
+        return this.subtotal + this.delivery_fee - (this.discount_amount || 0);
       },
     },
     status: {
@@ -70,30 +70,30 @@ const OrderSchema = new mongoose.Schema(
       ],  
       default: "pending",
     },
-    paymentMethod: {
+    payment_method: {
       type: String,
       enum: ["cash", "momo", "zalopay", "vnpay"],
       required: true,
     },
-    paymentStatus: {
+    payment_status: {
       type: String,
       enum: ["pending", "paid", "failed", "refunded"],
       default: "pending",
     },
-    paymentDate: {
+    payment_date: {
       type: Date,
       default: null,
     },
-    shippingAddress: {
-      receiverName: { type: String, required: true },
+    shipping_address: {
+      receiver_name: { type: String, required: true },
       phone: { type: String, required: true },
-      fullAddress: { type: String, required: true },
+      full_address: { type: String, required: true },
     },
     notes: {
       type: String,
       default: "",
     },
-    cancelReason: {
+    cancel_reason: {
       type: String,
       default: null,
     },
@@ -115,11 +115,11 @@ OrderSchema.pre("save", function (next) {
   this.subtotal = this.items.reduce((sum, item) => sum + item.total, 0);
 
   // Tính totalPrice
-  this.totalPrice =
-    this.subtotal + this.deliveryFee - (this.discountAmount || 0);
+  this.total_price =
+    this.subtotal + this.delivery_fee - (this.discount_amount || 0);
 
   // Cập nhật thời gian
-  this.updatedAt = Date.now();
+  this.updated_at = Date.now();
 
   next();
 });
@@ -127,7 +127,7 @@ OrderSchema.pre("save", function (next) {
 // Virtual field để lấy thông tin chi tiết về mã giảm giá
 OrderSchema.virtual("couponInfo", {
   ref: "DiscountCoupon",
-  localField: "couponCode",
+  localField: "coupon_code",
   foreignField: "code",
   justOne: true,
 });

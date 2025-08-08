@@ -5,6 +5,7 @@ import {
   comparePassword,
   newToken,
   standardResponse,
+  validateEmail
 } from "../utils/utility.function.js";
 import OTPModel from "../models/otp.model.js";
 import { sendOTPEmail } from "../service/email.service.js";
@@ -216,4 +217,17 @@ const verifyOTP = async (req, res) => {
   }
 };
 
-export { login, register, logout, updateFCMToken, forgotPassword, verifyOTP };
+
+const getProfile = async (req, res) => {
+  try {
+    const user = await userModel.findById(req.user.id).select("-password");
+    if (!user) {
+      return standardResponse(res, 404, { success: false, message: "Không tìm thấy người dùng" });
+    }
+    return standardResponse(res, 200, { success: true, data: user });
+  } catch (error) {
+    return standardResponse(res, 500, { success: false, message: error.message });
+  }
+};
+
+export { login, register, logout, updateFCMToken, forgotPassword, verifyOTP, getProfile };
