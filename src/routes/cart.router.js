@@ -15,4 +15,7 @@ router.post("/decrease", authorize("user"), cartCtrl.decreaseQuantity);
 
 router.delete("/remove", authorize("user"), cartCtrl.removeFromCart);
 
+router.get("/user/count", authorize("user"), cartCtrl.getCountItemInCart);
+
+
 export default router;

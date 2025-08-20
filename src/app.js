@@ -7,16 +7,16 @@ import logger from "morgan";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
-import buildAdminRouter from '../src/config/admin.js'
+import buildAdminRouter from "../src/config/admin.js";
 
-import dotenv from 'dotenv'
-dotenv.config()
+import dotenv from "dotenv";
+dotenv.config();
 connectDB();
 connectCloudinary();
 
 // Tích hợp AdminJS
-const { adminJs, adminRouter } = buildAdminRouter(app)
-app.use(adminJs.options.rootPath, adminRouter)
+const { adminJs, adminRouter } = buildAdminRouter(app);
+app.use(adminJs.options.rootPath, adminRouter);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -40,7 +40,6 @@ import notificationRouter from "./routes/notification.router.js";
 import statisticsRouter from "./routes/statistics.router.js";
 import bannerRoutes from "./routes/banner.routes.js";
 
-
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -55,12 +54,31 @@ app.use("/api/notifications", notificationRouter);
 app.use("/api/statistics", statisticsRouter);
 app.use("/api/banners", bannerRoutes);
 
-
 app.get("/", (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "Server is running",
-    });
+  res.status(200).json({
+    success: true,
+    message: "Server is running",
+  });
+});
+
+
+// import data
+import * as getData from "./scripts/generateData.js";
+
+
+app.get("/get-data", async (req, res) => {
+  await getData.cloneData(req, res);
+  await getData.getCategories(req, res);
+
+//   await getData.importUser(req, res);
+});
+
+app.get("/import-category", async (req, res) => {
+    await getData.importCategory(req, res);
+});
+
+app.get("/import-product", async (req, res) => {
+    await getData.importProduct(req, res);
 });
 
 app.use(notFound);

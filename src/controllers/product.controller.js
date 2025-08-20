@@ -1,5 +1,6 @@
 import productModel from "../models/product.model.js";
 import categoryModel from "../models/category.model.js";
+import reviewModel from "../models/review.model.js";
 import { standardResponse } from "../utils/utility.function.js";
 import {
   findCategoryOr404,
@@ -175,18 +176,55 @@ const getAllProducts = async (req, res) => {
 const getProductById = async (req, res) => {
   const { id } = req.params;
   try {
-    const product = await productModel.findOne({ _id: id });
+    let { relatedLimit = 4 } = req.query;
+    relatedLimit = parseInt(relatedLimit);
+    if (isNaN(relatedLimit) || relatedLimit < 1) relatedLimit = 6;
+    
+    const product = await productModel.findOne({ _id: id }).lean();
     if (!product)
       return standardResponse(res, 404, {
         success: false,
         message: "Không tìm thấy sản phẩm",
       });
+    
+    // Lấy thông tin category
+    const category = await categoryModel.findById(product.category_id).lean();
+    
+    // Lấy sản phẩm cùng thể loại (loại trừ sản phẩm hiện tại)
+    const relatedProducts = await productModel
+      .find({ 
+        category_id: product.category_id,
+        _id: { $ne: id }
+      })
+      .select('_id name imgUrl price isOnSale isFeatured discountPrice totalReviews averageRating')
+      .sort({ createdAt: -1 })
+      .limit(relatedLimit)
+      .lean();
+    
+    // Chỉ trả về các trường cần thiết cho sản phẩm liên quan
+    const relatedProductsSimplified = relatedProducts.map(relatedProduct => ({
+      _id: relatedProduct._id,
+      name: relatedProduct.name,
+      imgUrl: relatedProduct.imgUrl,
+      price: relatedProduct.price,
+      isOnSale: relatedProduct.isOnSale,
+      isFeatured: relatedProduct.isFeatured,
+      discountPrice: relatedProduct.discountPrice,
+      totalReviews: relatedProduct.totalReviews,
+      averageRating: relatedProduct.averageRating
+    }));
+    
     return standardResponse(res, 200, {
       success: true,
       message: "Lấy sản phẩm thành công",
-      data: product,
+      data: {
+        ...product,
+        category: category ? category.name : null,
+        relatedProducts: relatedProductsSimplified
+      },
     });
   } catch (error) {
+    console.error("[getProductById]", error, error.stack);
     return standardResponse(res, 500, {
       success: false,
       message: error.message,
@@ -321,22 +359,46 @@ const getProductsNew = async (req, res) => {
     let { page = 1, limit = 10 } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
+    
+    // Validate pagination parameters
     if (isNaN(page) || page < 1) page = 1;
     if (isNaN(limit) || limit < 1) limit = 10;
-
-    const skip = (page - 1) * limit;
-    const total = await productModel.countDocuments();
+    
+    // Tính toán ngày 7 ngày trước
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    // Tạo filter condition cho sản phẩm mới
+    const newProductFilter = { createdAt: { $gte: sevenDaysAgo } };
+    
+    const skip = (page - 1) * limit;
+    
+    // Đếm tổng số sản phẩm mới (chỉ sản phẩm trong 7 ngày)
+    const total = await productModel.countDocuments(newProductFilter);
+    
+    // Lấy sản phẩm mới với phân trang
     const products = await productModel
-      .find({ createdAt: { $gte: sevenDaysAgo } })
-      .sort({ createdAt: -1 })
+      .find(newProductFilter)
+      .sort({ createdAt: -1 }) // Sắp xếp theo thời gian tạo mới nhất
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // Sử dụng lean() để tối ưu hiệu suất
+    
+    // Thêm thông tin category cho từng sản phẩm
+    const productsWithCategory = await Promise.all(
+      products.map(async (product) => {
+        const category = await categoryModel.findById(product.category_id).lean();
+        return {
+          ...product,
+          category: category ? category.name : null
+        };
+      })
+    );
+    
     return standardResponse(res, 200, {
       success: true,
-      message: "Lấy sản phẩm mới thành công",
-      data: products,
+      message: total > 0 ? "Lấy sản phẩm mới thành công" : "Không có sản phẩm mới trong 7 ngày gần nhất",
+      data: productsWithCategory,
       pagination: {
         total,
         page,
@@ -348,7 +410,68 @@ const getProductsNew = async (req, res) => {
     console.error("[getProductsNew]", error, error.stack);
     return standardResponse(res, 500, {
       success: false,
-      message: error.message,
+      message: "Lỗi server khi lấy sản phẩm mới",
+    });
+  }
+};
+
+
+
+// Cập nhật rating của sản phẩm dựa trên reviews
+const updateProductRating = async (productId) => {
+  try {
+    const reviews = await reviewModel.find({ product_id: productId });
+    const totalReviews = reviews.length;
+    
+    let averageRating = 0;
+    if (totalReviews > 0) {
+      const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+      averageRating = Math.round((totalRating / totalReviews) * 10) / 10; // Làm tròn 1 chữ số thập phân
+    }
+    
+    await productModel.findByIdAndUpdate(productId, {
+      totalReviews,
+      averageRating
+    });
+    
+    return { totalReviews, averageRating };
+  } catch (error) {
+    console.error('Error updating product rating:', error);
+    throw error;
+  }
+};
+
+// Lấy thống kê rating của sản phẩm
+const getProductRatingStats = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const product = await findProductOr404(productModel, id, res);
+    if (!product) return;
+    
+    const reviews = await reviewModel.find({ product_id: id });
+    const ratingDistribution = {
+      5: 0, 4: 0, 3: 0, 2: 0, 1: 0
+    };
+    
+    reviews.forEach(review => {
+      if (review.rating >= 1 && review.rating <= 5) {
+        ratingDistribution[Math.floor(review.rating)]++;
+      }
+    });
+    
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Lấy thống kê rating thành công",
+      data: {
+        totalReviews: product.totalReviews,
+        averageRating: product.averageRating,
+        ratingDistribution
+      }
+    });
+  } catch (error) {
+    return standardResponse(res, 500, {
+      success: false,
+      message: error.message
     });
   }
 };
@@ -364,4 +487,6 @@ export {
   getProductsFeatured,
   getProductsSale,
   getProductsNew,
+  updateProductRating,
+  getProductRatingStats,
 };

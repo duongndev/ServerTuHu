@@ -5,13 +5,23 @@ import userModel from "../models/user.model.js";
 
 // Helper: Định dạng chi tiết sản phẩm trong giỏ hàng
 function formatCartItems(items) {
-  return items.map((item) => ({
-    product_id: item.product_id._id,
-    product_name: item.product_id.name,
-    product_image: item.product_id.imgUrl,
-    product_price: item.product_id.price,
-    product_quantity: item.quantity,
-  }));
+  return items.map((item) => {
+    const product = item.product_id;
+    const actualPrice = product.isOnSale && product.discountPrice > 0 
+      ? product.discountPrice 
+      : product.price;
+    
+    return {
+      product_id: product._id,
+      product_name: product.name,
+      product_image: product.imgUrl,
+      product_price: product.price,
+      product_discount_price: product.discountPrice || null,
+      product_actual_price: actualPrice,
+      isOnSale: product.isOnSale || false,
+      product_quantity: item.quantity,
+    };
+  });
 }
 
 // Thêm sản phẩm vào giỏ hàng
@@ -27,39 +37,58 @@ const addToCart = async (req, res) => {
         message: "Sản phẩm không tồn tại",
       });
     }
+
+    // Kiểm tra sản phẩm có còn khả dụng không
+    if (!product.isAvailable) {
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Sản phẩm hiện không khả dụng",
+      });
+    }
+
+    // Tính giá thực tế (có xét đến giảm giá)
+    const actualPrice = product.isOnSale && product.discountPrice > 0 
+      ? product.discountPrice 
+      : product.price;
+
     // Tìm hoặc tạo mới giỏ hàng
     let cart = await cartModel.findOne({ user_id });
     if (!cart) {
       cart = new cartModel({
         user_id: user_id,
-        items: [{ product_id, quantity, price: product.price * quantity }],
-        totalPrice: product.price * quantity,
+        items: [{ product_id, quantity, price: actualPrice * quantity }],
+        totalPrice: actualPrice * quantity,
       });
     } else {
       const cartItem = cart.items.find(
         (item) => item.product_id.toString() === product_id
       );
       if (cartItem) {
-        // Cập nhật số lượng và giá của item
+        // Cập nhật số lượng và giá của item (sử dụng giá hiện tại)
         cartItem.quantity += quantity;
-        cartItem.price = product.price * cartItem.quantity;
+        cartItem.price = actualPrice * cartItem.quantity;
       } else {
         // Thêm item mới
         cart.items.push({
           product_id,
           quantity,
-          price: product.price * quantity
+          price: actualPrice * quantity
         });
       }
       // Tính lại tổng tiền
       cart.totalPrice = cart.items.reduce((total, item) => total + item.price, 0);
     }
     await cart.save();
-    // Lấy lại giỏ hàng đã populate
+    
+    // Lấy lại giỏ hàng đã populate với thông tin đầy đủ
     const updatedCart = await cartModel
       .findOne({ user_id })
-      .populate({ path: "items.product_id", select: "name imgUrl price" });
+      .populate({ 
+        path: "items.product_id", 
+        select: "name imgUrl price discountPrice isOnSale" 
+      });
     const detailedProducts = formatCartItems(updatedCart.items);
+    
     return standardResponse(res, 200, {
       success: true,
       message: "Sản phẩm đã được thêm vào giỏ hàng",
@@ -76,7 +105,6 @@ const addToCart = async (req, res) => {
       message: "Lỗi khi thêm sản phẩm vào giỏ hàng",
       error: error.message,
     });
-    
   }
 };
 
@@ -92,7 +120,10 @@ const getUserCart = async (req, res) => {
       });
     const cart = await cartModel
       .findOne({ user_id })
-      .populate({ path: "items.product_id", select: "name imgUrl price" });
+      .populate({ 
+        path: "items.product_id", 
+        select: "name imgUrl price discountPrice isOnSale" 
+      });
     if (!cart)
       return standardResponse(res, 404, {
         success: false,
@@ -144,13 +175,22 @@ const increaseQuantity = async (req, res) => {
         success: false,
         message: "Sản phẩm không tồn tại",
       });
+    
+    // Tính giá thực tế (có xét đến giảm giá)
+    const actualPrice = product.isOnSale && product.discountPrice > 0 
+      ? product.discountPrice 
+      : product.price;
+    
     cartItem.quantity += 1;
-    cartItem.price = product.price * cartItem.quantity;
+    cartItem.price = actualPrice * cartItem.quantity;
     cart.totalPrice = cart.items.reduce((total, item) => total + item.price, 0);
     await cart.save();
     const updatedCart = await cartModel
       .findOne({ user_id })
-      .populate({ path: "items.product_id", select: "name imgUrl price" });
+      .populate({ 
+        path: "items.product_id", 
+        select: "name imgUrl price discountPrice isOnSale" 
+      });
     const detailedProducts = formatCartItems(updatedCart.items);
     return standardResponse(res, 200, {
       success: true,
@@ -201,9 +241,15 @@ const decreaseQuantity = async (req, res) => {
         success: false,
         message: "Sản phẩm không tồn tại",
       });
+    
+    // Tính giá thực tế (có xét đến giảm giá)
+    const actualPrice = product.isOnSale && product.discountPrice > 0 
+      ? product.discountPrice 
+      : product.price;
+    
     if (cartItem.quantity > 1) {
       cartItem.quantity -= 1;
-      cartItem.price = product.price * cartItem.quantity;
+      cartItem.price = actualPrice * cartItem.quantity;
     } else {
       cart.items = cart.items.filter(
         (item) => item.product_id.toString() !== product_id
@@ -213,7 +259,10 @@ const decreaseQuantity = async (req, res) => {
     await cart.save();
     const updatedCart = await cartModel
       .findOne({ user_id })
-      .populate({ path: "items.product_id", select: "name imgUrl price" });
+      .populate({ 
+        path: "items.product_id", 
+        select: "name imgUrl price discountPrice isOnSale" 
+      });
     const detailedProducts = formatCartItems(updatedCart.items);
     return standardResponse(res, 200, {
       success: true,
@@ -265,7 +314,10 @@ const removeFromCart = async (req, res) => {
     await cart.save();
     const updatedCart = await cartModel
       .findOne({ user_id })
-      .populate({ path: "items.product_id", select: "name imgUrl price" });
+      .populate({ 
+        path: "items.product_id", 
+        select: "name imgUrl price discountPrice isOnSale" 
+      });
     const detailedProducts = formatCartItems(updatedCart.items);
     return standardResponse(res, 200, {
       success: true,
@@ -284,10 +336,39 @@ const removeFromCart = async (req, res) => {
     });
   }
 };
+
+// get count item in cart
+const getCountItemInCart = async (req, res) => {
+  const user_id = req.user.id;
+  try {
+    const cart = await cartModel.findOne({ user_id });
+    if (!cart)
+      return standardResponse(res, 404, {
+        success: false,
+        message: "Giỏ hàng không tồn tại",
+      });
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Lấy số lượng sản phẩm trong giỏ hàng thành công",
+      data: {
+        count: cart.items.length,
+      },
+    });
+  } catch (error) {
+    return standardResponse(res, 500, {
+      success: false,
+      message: "Lỗi khi lấy số lượng sản phẩm trong giỏ hàng",
+      error: error.message,
+    });
+  }
+};
+
+
 export {
   addToCart,
   getUserCart,
   increaseQuantity,
   decreaseQuantity,
   removeFromCart,
+  getCountItemInCart
 };

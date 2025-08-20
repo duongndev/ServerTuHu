@@ -41,19 +41,19 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    reviews: [
-      {
-        type: mongoose.Schema.Types.Number,
-        ref: "Reviews",
-      },
-    ],
+    totalReviews: {
+      type: Number,
+      default: 0,
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
     isFeatured: {
       type: Boolean,
       default: false,
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now,
     },
   },
   {
