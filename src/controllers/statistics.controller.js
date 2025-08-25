@@ -23,6 +23,14 @@ const getOverviewStatistics = async (req, res) => {
     const deliveredOrders = await orderModel.countDocuments({ order_status: "delivered" });
     const cancelledOrders = await orderModel.countDocuments({ order_status: "cancelled" });
 
+    // Thống kê người dùng mới trong tháng
+    const newUsersThisMonth = await userModel.countDocuments({
+      role: "user",
+      createdAt: {
+        $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      }
+    });
+
     return standardResponse(res, 200, {
       success: true,
       message: "Lấy thống kê tổng quan thành công",
@@ -31,6 +39,7 @@ const getOverviewStatistics = async (req, res) => {
         totalProducts,
         totalOrders,
         totalRevenue: totalRevenue[0]?.total || 0,
+        newUsersThisMonth,
         ordersByStatus: {
           pending: pendingOrders,
           processing: processingOrders,

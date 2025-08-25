@@ -1,14 +1,13 @@
 export default {
   testEnvironment: 'node',
   transform: {},
-  extensionsToTreatAsEsm: ['.js'],
   globals: {
     'ts-jest': {
       useESM: true
     }
   },
-  moduleNameMapping: {
-    '^(\.{1,2}/.*)\.js$': '$1'
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   testMatch: [
     '**/tests/**/*.test.js',
@@ -24,5 +23,9 @@ export default {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
-  testTimeout: 30000
+  testTimeout: 30000,
+  transformIgnorePatterns: [
+    'node_modules/(?!(mongodb-memory-server)/)'
+  ],
+  setupFiles: ['<rootDir>/tests/setupEnv.js']
 };

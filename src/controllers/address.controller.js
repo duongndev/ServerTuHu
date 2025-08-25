@@ -195,8 +195,11 @@ const getProvince = async (req, res) => {
 
     const data = province.data;
 
-    // Lấy trường "province" trong mảng data
-    const provinces = data.data.map((item) => item.province);
+    // Lấy trường "province" và "id" trong mảng data
+    const provinces = data.data.map((item) => ({
+      id: item.id,
+      name: item.province,
+    }));
     res.json(provinces);
   } catch (error) {
     return standardResponse(res, 500, {
@@ -237,11 +240,33 @@ const getWards = async (req, res) => {
     const wards = foundProvince.wards || [];
 
     // res.json(wards);
+
     
-    // Chỉ lấy mỗi trường name trong danh sách xã/phường
-    const wardNames = wards.map(ward => ward.name);
+
+    /**
+     *  mảng xã, phường theo cấu trúc  
+     * province: "Hà Nội",
+        id: "1",
+        wards: []
+     */
+    const wardsData = {
+      province: foundProvince.province,
+      id: foundProvince.id,
+      wards: []
+    }
+
+    for (let i = 0; i < wards.length; i++) {
+      const ward = wards[i];
+      wardsData.wards.push({
+        id: ward.id,
+        name: ward.name
+      })
+    }
+
+    console.log(wardsData.wards.length);
     
-    res.json(wardNames);
+
+    res.json(wardsData);
 
   } catch (error) {
     return standardResponse(res, 500, {
