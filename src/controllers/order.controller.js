@@ -198,11 +198,9 @@ const createOrder = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-
-    return standardResponse(res, 500, {
+    return res.status(500).json({
       success: false,
-      message: "Lỗi khi tạo đơn hàng",
-      error: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -225,10 +223,9 @@ const getOrdersByUserId = async (req, res) => {
       data: orders,
     });
   } catch (error) {
-    return standardResponse(res, 500, {
+    return res.status(500).json({
       success: false,
-      message: "Lỗi khi lấy danh sách đơn hàng",
-      error: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -257,10 +254,9 @@ const getOrderById = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    return standardResponse(res, 500, {
+    return res.status(500).json({
       success: false,
-      message: "Lỗi khi lấy thông tin đơn hàng",
-      error: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -310,10 +306,9 @@ const updateOrderStatus = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    return standardResponse(res, 500, {
+    return res.status(500).json({
       success: false,
-      message: "Lỗi khi cập nhật trạng thái đơn hàng",
-      error: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -371,10 +366,9 @@ const updatePaymentStatus = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    return standardResponse(res, 500, {
+    return res.status(500).json({
       success: false,
-      message: "Lỗi khi cập nhật trạng thái thanh toán",
-      error: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -442,10 +436,9 @@ const cancelOrder = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    return standardResponse(res, 500, {
+    return res.status(500).json({
       success: false,
-      message: "Lỗi khi hủy đơn hàng",
-      error: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -506,10 +499,9 @@ const getAllOrders = async (req, res) => {
       },
     });
   } catch (error) {
-    return standardResponse(res, 500, {
+    return res.status(500).json({
       success: false,
-      message: "Lỗi khi lấy danh sách đơn hàng",
-      error: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };

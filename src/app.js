@@ -7,16 +7,11 @@ import logger from "morgan";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
-import buildAdminRouter from "../src/config/admin.js";
 
 import dotenv from "dotenv";
 dotenv.config();
 connectDB();
 connectCloudinary();
-
-// Tích hợp AdminJS
-const { adminJs, adminRouter } = buildAdminRouter(app);
-app.use(adminJs.options.rootPath, adminRouter);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -61,25 +56,6 @@ app.get("/", (req, res) => {
   });
 });
 
-
-// import data
-import * as getData from "./scripts/generateData.js";
-
-
-app.get("/get-data", async (req, res) => {
-  await getData.cloneData(req, res);
-  await getData.getCategories(req, res);
-
-//   await getData.importUser(req, res);
-});
-
-app.get("/import-category", async (req, res) => {
-    await getData.importCategory(req, res);
-});
-
-app.get("/import-product", async (req, res) => {
-    await getData.importProduct(req, res);
-});
 
 app.use(notFound);
 app.use(errorHandler);

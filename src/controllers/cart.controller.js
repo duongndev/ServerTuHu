@@ -100,11 +100,7 @@ const addToCart = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-    return standardResponse(res, 500, {
-      success: false,
-      message: "Lỗi khi thêm sản phẩm vào giỏ hàng",
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 
@@ -136,11 +132,7 @@ const getUserCart = async (req, res) => {
       data: { user_id, cart: detailedProducts, totalPrice: cart.totalPrice },
     });
   } catch (error) {
-    return standardResponse(res, 500, {
-      success: false,
-      message: "Lỗi khi lấy giỏ hàng",
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 
@@ -202,11 +194,7 @@ const increaseQuantity = async (req, res) => {
       },
     });
   } catch (error) {
-    return standardResponse(res, 500, {
-      success: false,
-      message: "Lỗi khi tăng số lượng sản phẩm",
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 
@@ -274,11 +262,7 @@ const decreaseQuantity = async (req, res) => {
       },
     });
   } catch (error) {
-    return standardResponse(res, 500, {
-      success: false,
-      message: "Lỗi khi giảm số lượng trong sản phẩm",
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 
@@ -329,11 +313,7 @@ const removeFromCart = async (req, res) => {
       },
     });
   } catch (error) {
-    return standardResponse(res, 500, {
-      success: false,
-      message: "Lỗi khi xóa sản phẩm trong giỏ hàng",
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 
@@ -355,11 +335,7 @@ const getCountItemInCart = async (req, res) => {
       },
     });
   } catch (error) {
-    return standardResponse(res, 500, {
-      success: false,
-      message: "Lỗi khi lấy số lượng sản phẩm trong giỏ hàng",
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 

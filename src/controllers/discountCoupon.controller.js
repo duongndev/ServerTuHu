@@ -1,5 +1,5 @@
 import discountCouponModel from "../models/discountCoupon.model.js";
-import { standardResponse } from "../utils/utility.function.js"; 
+import { standardResponse } from "../utils/utility.function.js";
 import { sendToAllUsers } from "../service/notification.service.js";
 
 // Tạo mã giảm giá mới
@@ -11,42 +11,61 @@ const createCoupon = async (req, res) => {
     try {
       await sendToAllUsers({
         title: "Mã giảm giá mới",
-        message: `Mã ${coupon.code} - ${coupon.discountType === "percentage" ? coupon.discountValue + "%" : coupon.discountValue + "đ"} đã được áp dụng!`,
+        message: `Mã ${coupon.code} - ${
+          coupon.discountType === "percentage"
+            ? coupon.discountValue + "%"
+            : coupon.discountValue + "đ"
+        } đã được áp dụng!`,
         type: "discountCoupon",
         couponId: coupon._id,
         sender: req.user._id,
       });
     } catch (error) {
-      return standardResponse(res, 500, { success: false, message: "Lỗi khi gửi thông báo", error: error.message });
+      return standardResponse(res, 500, {
+        success: false,
+        message: "Lỗi khi gửi thông báo",
+        error: error.message,
+      });
     }
-    return standardResponse(res, 201, { success: true, message: "Tạo mã giảm giá thành công", data: coupon });
+    return standardResponse(res, 201, {
+      success: true,
+      message: "Tạo mã giảm giá thành công",
+      data: coupon,
+    });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: "Lỗi khi tạo mã giảm giá", error: error.message });
+    return standardResponse(res, 500, {
+      success: false,
+      message: "Lỗi khi tạo mã giảm giá",
+      error: error.message,
+    });
   }
 };
 
 // Lấy tất cả mã giảm giá với phân trang và lọc
 const getAllCoupons = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    let { page = 1, limit = 10 } = req.query;
+    limit = parseInt(limit);
+    if (isNaN(limit) || limit < 1) limit = 10;
+    if (limit > 100) limit = 100; // Giới hạn tối đa 100 bản ghi
     const skip = (page - 1) * limit;
 
     const { isActive, discountType, code } = req.query;
     let query = {};
 
     if (isActive !== undefined) {
-      query.isActive = isActive === 'true';
+      query.isActive = isActive === "true";
     }
     if (discountType) {
       query.discountType = discountType;
     }
     if (code) {
-      query.code = { $regex: code, $options: 'i' }; // Tìm kiếm không phân biệt chữ hoa chữ thường
+      query.code = { $regex: code, $options: "i" }; // Tìm kiếm không phân biệt chữ hoa chữ thường
     }
 
     const totalCoupons = await discountCouponModel.countDocuments(query);
-    const coupons = await discountCouponModel.find(query)
+    const coupons = await discountCouponModel
+      .find(query)
       .sort({ createdAt: -1 }) // Sắp xếp theo ngày tạo giảm dần
       .skip(skip)
       .limit(limit);
@@ -65,7 +84,7 @@ const getAllCoupons = async (req, res) => {
       },
     });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: "Lỗi khi lấy danh sách mã giảm giá", error: error.message });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 
@@ -74,37 +93,77 @@ const getCouponById = async (req, res) => {
   try {
     const coupon = await discountCouponModel.findById(req.params.id);
     if (!coupon) {
-      return standardResponse(res, 404, { success: false, message: "Không tìm thấy mã giảm giá" });
+      return standardResponse(res, 404, {
+        success: false,
+        message: "Không tìm thấy mã giảm giá",
+      });
     }
-    return standardResponse(res, 200, { success: true, message: "Lấy thông tin mã giảm giá thành công", data: coupon });
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Lấy thông tin mã giảm giá thành công",
+      data: coupon,
+    });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: "Lỗi khi lấy thông tin mã giảm giá", error: error.message });
+    return standardResponse(res, 500, {
+      success: false,
+      message: "Lỗi khi lấy thông tin mã giảm giá",
+      error: error.message,
+    });
   }
 };
 
 // Cập nhật mã giảm giá
 const updateCoupon = async (req, res) => {
   try {
-    const updatedCoupon = await discountCouponModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedCoupon = await discountCouponModel.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
     if (!updatedCoupon) {
-      return standardResponse(res, 404, { success: false, message: "Không tìm thấy mã giảm giá" });
+      return standardResponse(res, 404, {
+        success: false,
+        message: "Không tìm thấy mã giảm giá",
+      });
     }
-    return standardResponse(res, 200, { success: true, message: "Cập nhật mã giảm giá thành công", data: updatedCoupon });
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Cập nhật mã giảm giá thành công",
+      data: updatedCoupon,
+    });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: "Lỗi khi cập nhật mã giảm giá", error: error.message });
+    return standardResponse(res, 500, {
+      success: false,
+      message: "Lỗi khi cập nhật mã giảm giá",
+      error: error.message,
+    });
   }
 };
 
 // Xóa mã giảm giá
 const deleteCoupon = async (req, res) => {
   try {
-    const deletedCoupon = await discountCouponModel.findByIdAndDelete(req.params.id);
+    const deletedCoupon = await discountCouponModel.findByIdAndDelete(
+      req.params.id
+    );
     if (!deletedCoupon) {
-      return standardResponse(res, 404, { success: false, message: "Không tìm thấy mã giảm giá" });
+      return standardResponse(res, 404, {
+        success: false,
+        message: "Không tìm thấy mã giảm giá",
+      });
     }
-    return standardResponse(res, 200, { success: true, message: "Xóa mã giảm giá thành công", data: deletedCoupon });
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Xóa mã giảm giá thành công",
+      data: deletedCoupon,
+    });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: "Lỗi khi xóa mã giảm giá", error: error.message });
+    return standardResponse(res, 500, {
+      success: false,
+      message: "Lỗi khi xóa mã giảm giá",
+      error: error.message,
+    });
   }
 };
 
@@ -114,19 +173,34 @@ const applyCoupon = async (req, res) => {
     const { code, orderAmount } = req.body;
     const coupon = await discountCouponModel.findOne({ code });
     if (!coupon) {
-      return standardResponse(res, 404, { success: false, message: "Không tìm thấy mã giảm giá" });
+      return standardResponse(res, 404, {
+        success: false,
+        message: "Không tìm thấy mã giảm giá",
+      });
     }
     if (!coupon.isActive) {
-      return standardResponse(res, 400, { success: false, message: "Mã giảm giá không hợp lệ" });
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Mã giảm giá không hợp lệ",
+      });
     }
     if (coupon.expirationDate && new Date() > coupon.expirationDate) {
-      return standardResponse(res, 400, { success: false, message: "Mã giảm giá đã hết hạn" });
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Mã giảm giá đã hết hạn",
+      });
     }
     if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
-      return standardResponse(res, 400, { success: false, message: "Mã giảm giá đã hết lượt sử dụng" });
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Mã giảm giá đã hết lượt sử dụng",
+      });
     }
     if (orderAmount < coupon.minimumOrderAmount) {
-      return standardResponse(res, 400, { success: false, message: `Giá trị đơn hàng phải lớn hơn ${coupon.minimumOrderAmount}` });
+      return standardResponse(res, 400, {
+        success: false,
+        message: `Giá trị đơn hàng phải lớn hơn ${coupon.minimumOrderAmount}`,
+      });
     }
     let discountAmount = 0;
     if (coupon.discountType === "percentage") {
@@ -137,9 +211,17 @@ const applyCoupon = async (req, res) => {
     // Tăng số lần sử dụng mã giảm giá
     coupon.usedCount += 1;
     await coupon.save();
-    return standardResponse(res, 200, { success: true, message: "Áp dụng mã giảm giá thành công", data: { discountAmount, coupon } });
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Áp dụng mã giảm giá thành công",
+      data: { discountAmount, coupon },
+    });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: "Lỗi khi áp dụng mã giảm giá", error: error.message });
+    return standardResponse(res, 500, {
+      success: false,
+      message: "Lỗi khi áp dụng mã giảm giá",
+      error: error.message,
+    });
   }
 };
 

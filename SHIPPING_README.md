@@ -176,12 +176,6 @@ npm install axios
 - Chỉ hỗ trợ địa chỉ ở Hà Nội
 - Kiểm tra quyền truy cập địa chỉ
 
-## Testing
-
-Chạy test để kiểm tra chức năng:
-```bash
-npm test -- src/tests/shipping.test.js
-```
 
 ## Tương Lai
 

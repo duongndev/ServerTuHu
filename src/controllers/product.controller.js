@@ -53,7 +53,7 @@ const createProduct = async (req, res) => {
     if (req.file) {
       try { await fs.unlink(req.file.path); } catch {}
     }
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 
@@ -98,7 +98,7 @@ const updateProduct = async (req, res) => {
     if (req.file) {
       try { await fs.unlink(req.file.path); } catch {}
     }
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 
@@ -128,7 +128,7 @@ const deleteProduct = async (req, res) => {
   } catch (error) {
     return standardResponse(res, 500, {
       success: false,
-      message: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -137,10 +137,9 @@ const deleteProduct = async (req, res) => {
 const getAllProducts = async (req, res) => {
   try {
     let { page = 1, limit = 10 } = req.query;
-    page = parseInt(page);
     limit = parseInt(limit);
-    if (isNaN(page) || page < 1) page = 1;
     if (isNaN(limit) || limit < 1) limit = 10;
+    if (limit > 100) limit = 100; // Giới hạn tối đa 100 bản ghi
     const skip = (page - 1) * limit;
     const total = await productModel.countDocuments();
     const products = await productModel.find().skip(skip).limit(limit);
@@ -167,7 +166,7 @@ const getAllProducts = async (req, res) => {
   } catch (error) {
     return standardResponse(res, 500, {
       success: false,
-      message: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -227,7 +226,7 @@ const getProductById = async (req, res) => {
     console.error("[getProductById]", error, error.stack);
     return standardResponse(res, 500, {
       success: false,
-      message: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -247,7 +246,7 @@ const getProductByCategoryId = async (req, res) => {
   } catch (error) {
     return standardResponse(res, 500, {
       success: false,
-      message: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -273,7 +272,7 @@ const searchProductByName = async (req, res) => {
     console.error("[searchProductByName]", error, error.stack);
     return standardResponse(res, 500, {
       success: false,
-      message: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -313,7 +312,7 @@ const getProductsFeatured = async (req, res) => {
   } catch (error) {
     return standardResponse(res, 500, {
       success: false,
-      message: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -348,7 +347,7 @@ const getProductsSale = async (req, res) => {
     console.error("[getProductsSale]", error, error.stack);
     return standardResponse(res, 500, {
       success: false,
-      message: error.message,
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
   }
 };
@@ -471,7 +470,7 @@ const getProductRatingStats = async (req, res) => {
   } catch (error) {
     return standardResponse(res, 500, {
       success: false,
-      message: error.message
+      message: "Đã xảy ra lỗi, vui lòng thử lại sau."
     });
   }
 };

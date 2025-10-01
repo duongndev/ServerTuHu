@@ -239,33 +239,18 @@ const getWards = async (req, res) => {
     // Lấy danh sách xã/phường từ trường "wards"
     const wards = foundProvince.wards || [];
 
-    // res.json(wards);
-
-    
-
-    /**
-     *  mảng xã, phường theo cấu trúc  
-     * province: "Hà Nội",
-        id: "1",
-        wards: []
-     */
     const wardsData = {
-      province: foundProvince.province,
-      id: foundProvince.id,
-      wards: []
+      provinceName: foundProvince.province,
+      provinceId: foundProvince.id,
+      wardsName: []
     }
 
     for (let i = 0; i < wards.length; i++) {
       const ward = wards[i];
-      wardsData.wards.push({
-        id: ward.id,
-        name: ward.name
-      })
+      wardsData.wardsName.push(ward.name)
     }
 
-    console.log(wardsData.wards.length);
     
-
     res.json(wardsData);
 
   } catch (error) {

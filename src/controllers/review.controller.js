@@ -38,11 +38,9 @@ const getReviewsByProduct = async (req, res) => {
   try {
     const { productId } = req.params;
     let { page = 1, limit = 10 } = req.query;
-    page = parseInt(page);
     limit = parseInt(limit);
-    if (isNaN(page) || page < 1) page = 1;
     if (isNaN(limit) || limit < 1) limit = 10;
-    
+    if (limit > 100) limit = 100; // Giới hạn tối đa 100 bản ghi
     const skip = (page - 1) * limit;
     const total = await reviewsModel.countDocuments({ product_id: productId });
     
@@ -65,7 +63,7 @@ const getReviewsByProduct = async (req, res) => {
       }
     });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: error.message });
+    return standardResponse(res, 500, { success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
   }
 };
 
