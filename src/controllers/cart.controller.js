@@ -123,7 +123,8 @@ const getUserCart = async (req, res) => {
     if (!cart)
       return standardResponse(res, 404, {
         success: false,
-        message: "Giỏ hàng không tồn tại",
+        message: "Giỏ hàng trống",
+        data: { user_id, cart: [], totalPrice: 0 },
       });
     const detailedProducts = formatCartItems(cart.items);
     return standardResponse(res, 200, {
@@ -132,7 +133,7 @@ const getUserCart = async (req, res) => {
       data: { user_id, cart: detailedProducts, totalPrice: cart.totalPrice },
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." });
+    return res.status(500).json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại sau." + error.message });
   }
 };
 
