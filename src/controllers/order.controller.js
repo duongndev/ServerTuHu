@@ -8,7 +8,8 @@ import {
   sendToUser,
   sendToBoth,
 } from "../service/notification.service.js";
-import { standardResponse } from "../utils/utility.function.js";
+import { standardResponse, logSecurityEvent } from "../utils/utility.function.js";
+import AuditLog from "../models/auditLog.model.js";
 
 // Helper: Chuẩn hóa populate cho order
 const orderPopulate = [
@@ -191,6 +192,27 @@ const createOrder = async (req, res) => {
         error: error.message,
       });
     }
+    // Log audit event
+    await AuditLog.createLog({
+      userId: user_id,
+      action: 'ORDER_CREATED',
+      resource: 'Order',
+      resourceId: order._id,
+      details: {
+        totalPrice: order.total_price,
+        itemCount: order.items.length,
+        paymentMethod: payment_method,
+        couponUsed: !!coupo_code,
+        shippingFee: order.shipping_fee
+      },
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown',
+      severity: 'LOW',
+      status: 'SUCCESS',
+      apiEndpoint: req.originalUrl,
+      httpMethod: req.method
+    });
+
     return standardResponse(res, 201, {
       success: true,
       message: "Tạo đơn hàng thành công",
@@ -300,6 +322,27 @@ const updateOrderStatus = async (req, res) => {
     } catch (error) {
       // Không trả lỗi notification cho client
     }
+
+    // Log audit event
+    await AuditLog.createLog({
+      userId: req.user?.id,
+      action: 'ORDER_STATUS_UPDATED',
+      resource: 'Order',
+      resourceId: orderId,
+      details: {
+        oldStatus: order.status,
+        newStatus: status,
+        totalPrice: order.total_price,
+        customerId: order.user_id
+      },
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown',
+      severity: 'MEDIUM',
+      status: 'SUCCESS',
+      apiEndpoint: req.originalUrl,
+      httpMethod: req.method
+    });
+
     return standardResponse(res, 200, {
       success: true,
       message: "Cập nhật trạng thái đơn hàng thành công",

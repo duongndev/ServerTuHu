@@ -1,7 +1,8 @@
 import userModel from "../models/user.model.js";
-import { standardResponse, hashPassword } from "../utils/utility.function.js";
+import { standardResponse, hashPassword, logSecurityEvent } from "../utils/utility.function.js";
 import cloudinary from "../config/cloudinary.config.js";
 import fs from "fs/promises";
+import AuditLog from "../models/auditLog.model.js";
 
 // Lấy tất cả user (ẩn password)
 const getAllUsers = async (req, res) => {
@@ -90,6 +91,25 @@ const updateUser = async (req, res) => {
       });
     }
 
+    // Log audit event
+    await AuditLog.createLog({
+      userId: req.user?.id,
+      action: 'USER_PROFILE_UPDATED',
+      resource: 'User',
+      resourceId: id,
+      details: {
+        updatedFields: { fullName, phone },
+        targetUserId: id,
+        isOwnProfile: req.user?.id === id
+      },
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown',
+      severity: 'LOW',
+      status: 'SUCCESS',
+      apiEndpoint: req.originalUrl,
+      httpMethod: req.method
+    });
+
     return standardResponse(res, 200, {
       success: true,
       message: "Cập nhật user thành công",
@@ -148,6 +168,33 @@ const deleteUser = async (req, res) => {
         message: "Không tìm thấy user",
       });
     }
+
+    // Log audit event
+    await AuditLog.createLog({
+      userId: req.user?.id,
+      action: 'USER_DELETED',
+      resource: 'User',
+      resourceId: req.params.id,
+      details: {
+        deletedUserEmail: user.email,
+        deletedUserRole: user.role,
+        deletedUserName: user.fullName
+      },
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown',
+      severity: 'HIGH',
+      status: 'SUCCESS',
+      apiEndpoint: req.originalUrl,
+      httpMethod: req.method
+    });
+
+    // Log security event for user deletion
+    await logSecurityEvent('USER_DELETED', {
+      deletedUserId: req.params.id,
+      deletedUserEmail: user.email,
+      deletedUserRole: user.role
+    }, req);
+
     return standardResponse(res, 200, {
       success: true,
       message: "Xóa user thành công",

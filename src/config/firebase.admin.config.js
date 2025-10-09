@@ -22,8 +22,13 @@ const firebaseConfigFromEnv = {
 
 
 
-admin.initializeApp({
-  credential: admin.credential.cert(firebaseConfigFromEnv),
-});
+// Only initialize Firebase if required environment variables are present
+if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
+  admin.initializeApp({
+    credential: admin.credential.cert(firebaseConfigFromEnv),
+  });
+} else {
+  console.log('Firebase Admin SDK not initialized - missing required environment variables');
+}
 
 export default admin;

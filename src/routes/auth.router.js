@@ -1,27 +1,37 @@
-import express from 'express';
-const router = express.Router();
+import express from "express";
 import {
-    forgotPassword,
-    login,
-    logout,
-    register,
-    updateFCMToken,
-    verifyOTP,
-    getProfile
-} from '../controllers/auth.controller.js';
-import { protect } from "../middlewares/auth.middleware.js";   
+  login,
+  register,
+  logout,
+  refreshToken,
+  changePassword,
+  updateFCMToken,
+  forgotPassword,
+  verifyOTP,
+  getProfile,
+} from "../controllers/auth.controller.js";
+import { protect } from "../middlewares/auth.middleware.js";
+import { 
+  userValidationRules, 
+  handleValidationErrors 
+} from "../middlewares/inputValidation.middleware.js";
+import { 
+  authRateLimit, 
+  passwordResetRateLimit,
+  burstProtection 
+} from "../middlewares/rateLimiting.middleware.js";
 
-router.post('/register', register);
-router.post('/login', login);
-router.post('/logout', logout);
-router.post("/update-fcm-token", protect, updateFCMToken);
+const router = express.Router();   
 
-// Quên mật khẩu - gửi OTP về email
+router.post('/register', authRateLimit, burstProtection, userValidationRules.register, handleValidationErrors, register);
+router.post('/login', authRateLimit, burstProtection, userValidationRules.login, handleValidationErrors, login);
+router.post('/logout', burstProtection, logout);
+router.post('/refresh-token', authRateLimit, burstProtection, refreshToken);
+router.post('/change-password', passwordResetRateLimit, burstProtection, protect, changePassword);
 router.post('/forgot-password', forgotPassword);
-// Xác thực OTP
 router.post('/verify-otp', verifyOTP);
-
+router.post('/update-fcm-token', protect, updateFCMToken);
 router.get('/profile', protect, getProfile);
 
 
-export default router; 
+export default router;

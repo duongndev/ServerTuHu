@@ -1,6 +1,8 @@
 export default {
   testEnvironment: 'node',
-  transform: {},
+  transform: {
+    '^.+\\.js$': 'babel-jest',
+  },
   globals: {
     'ts-jest': {
       useESM: true
@@ -25,7 +27,7 @@ export default {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
   testTimeout: 30000,
   transformIgnorePatterns: [
-    'node_modules/(?!(mongodb-memory-server)/)'
+    'node_modules/(?!(mongodb-memory-server|@faker-js)/)'
   ],
   setupFiles: ['<rootDir>/tests/setupEnv.js']
 };

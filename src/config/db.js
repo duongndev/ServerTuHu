@@ -2,17 +2,27 @@ import dotenv from 'dotenv'
 dotenv.config()
 import mongoose from 'mongoose'
 import cloudinary from "cloudinary";
+import { secureDBConnection } from "../middlewares/databaseSecurity.middleware.js";
 
 const connectDB = async () => {
   try {
     await mongoose.set("strictQuery", true);
-    await mongoose.connect(process.env.MONGO_URI, {
+    
+    // Apply secure connection options
+    const connectionOptions = {
       user: process.env.DB_USER,
       pass: process.env.DB_PASS,
       dbName: process.env.DB_NAME,
-    });
+      ...secureDBConnection.mongooseOptions
+    };
+    
+    await mongoose.connect(process.env.MONGO_URI, connectionOptions);
+    
+    // Setup connection monitoring
+    secureDBConnection.setupConnectionMonitoring(mongoose);
+    
     if (process.env.NODE_ENV !== 'test') {
-      console.log("MongoDB connection successful");
+      console.log("MongoDB connection successful with security options");
     }
   } catch (error) {
     console.error("MongoDB connection fail");

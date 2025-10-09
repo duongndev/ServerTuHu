@@ -1,6 +1,6 @@
 import axios from "axios";
 import addressModel from "../models/address.model.js";
-import { standardResponse } from "../utils/utility.function.js";
+import { standardResponse } from "../middlewares/middleware.js";
 
 // Tạo mới địa chỉ
 const createAddress = async (req, res) => {
@@ -10,7 +10,7 @@ const createAddress = async (req, res) => {
     if (!receiver_name || !phone || !province || !ward || !full_address) {
       return standardResponse(res, 400, {
         success: false,
-        message: "Thiếu trường bắt buộc",
+        message: "Missing required fields",
       });
     }
     // Nếu là địa chỉ mặc định, bỏ mặc định các địa chỉ khác
@@ -29,7 +29,7 @@ const createAddress = async (req, res) => {
     await newAddress.save();
     return standardResponse(res, 201, {
       success: true,
-      message: "Tạo địa chỉ thành công",
+      message: "Address created successfully",
       data: newAddress,
     });
   } catch (error) {
@@ -49,7 +49,7 @@ const getAddressesByUser = async (req, res) => {
       .sort({ isDefault: -1, createdAt: -1 });
     return standardResponse(res, 200, {
       success: true,
-      message: "Lấy danh sách địa chỉ thành công",
+      message: "Address list retrieved successfully", 
       data: addresses,
     });
   } catch (error) {
@@ -66,7 +66,7 @@ const getAllAddresses = async (req, res) => {
     const addresses = await addressModel.find();
     return standardResponse(res, 200, {
       success: true,
-      message: "Lấy tất cả địa chỉ thành công",
+      message: "Address list retrieved successfully", 
       data: addresses,
     });
   } catch (error) {
@@ -85,12 +85,12 @@ const getAddressById = async (req, res) => {
     if (!address) {
       return standardResponse(res, 404, {
         success: false,
-        message: "Không tìm thấy địa chỉ",
+        message: "Address not found",
       });
     }
     return standardResponse(res, 200, {
       success: true,
-      message: "Lấy địa chỉ thành công",
+      message: "Address retrieved successfully",
       data: address,
     });
   } catch (error) {
@@ -110,13 +110,13 @@ const updateAddress = async (req, res) => {
     if (!address) {
       return standardResponse(res, 404, {
         success: false,
-        message: "Không tìm thấy địa chỉ",
+        message: "Address not found",
       });
     }
     if (address.userId.toString() !== userId) {
       return standardResponse(res, 403, {
         success: false,
-        message: "Không có quyền cập nhật địa chỉ này",
+        message: "Forbidden",
       });
     }
     const { receiverName, phone, province, ward, fullAddress, isDefault } =
@@ -124,7 +124,7 @@ const updateAddress = async (req, res) => {
     if (!receiverName || !phone || !province || !ward || !fullAddress) {
       return standardResponse(res, 400, {
         success: false,
-        message: "Thiếu trường bắt buộc",
+        message: "Missing required fields",
       });
     }
     // Nếu là địa chỉ mặc định, bỏ mặc định các địa chỉ khác
@@ -145,7 +145,7 @@ const updateAddress = async (req, res) => {
     );
     return standardResponse(res, 200, {
       success: true,
-      message: "Cập nhật địa chỉ thành công",
+      message: "Address updated successfully",
       data: updatedAddress,
     });
   } catch (error) {
@@ -165,19 +165,19 @@ const deleteAddress = async (req, res) => {
     if (!address) {
       return standardResponse(res, 404, {
         success: false,
-        message: "Không tìm thấy địa chỉ",
+        message: "Address not found",
       });
     }
     if (address.userId.toString() !== userId) {
       return standardResponse(res, 403, {
         success: false,
-        message: "Không có quyền xóa địa chỉ này",
+        message: "Forbidden",
       });
     }
     await addressModel.findByIdAndDelete(id);
     return standardResponse(res, 200, {
       success: true,
-      message: "Xóa địa chỉ thành công",
+      message: "Address deleted successfully",
     });
   } catch (error) {
     return standardResponse(res, 500, {
@@ -212,13 +212,13 @@ const getProvince = async (req, res) => {
 const getWards = async (req, res) => {
   try {
 
-    // Lấy danh sách xã/phường theo tỉnh
+    // Lấy danh sách xã/phường theo tỉnh/thành phố
     // province sẽ được truyền qua query string, ví dụ: ?province=Hà Nội
     const { province } = req.query;
     if (!province) {
       return standardResponse(res, 400, {
         success: false,
-        message: "Thiếu tên tỉnh/thành phố",
+        message: "Missing province parameter",
       });
     }
 

@@ -1,13 +1,14 @@
 import productModel from "../models/product.model.js";
 import categoryModel from "../models/category.model.js";
 import reviewModel from "../models/review.model.js";
-import { standardResponse } from "../utils/utility.function.js";
+import { standardResponse, logSecurityEvent } from "../utils/utility.function.js";
 import {
   findCategoryOr404,
   findProductOr404,
 } from "../utils/validate.function.js";
 import cloudinary from "../config/cloudinary.config.js";
 import fs from "fs/promises";
+import AuditLog from "../models/auditLog.model.js";
 
 // Tạo sản phẩm mới
 const createProduct = async (req, res) => {
@@ -48,6 +49,28 @@ const createProduct = async (req, res) => {
     // Tạo sản phẩm mới
     const newProduct = new productModel({ name, description, price, category_id, imgUrl, isFeatured, isOnSale });
     await newProduct.save();
+
+    // Log audit event
+    await AuditLog.createLog({
+      userId: req.user?.id,
+      action: 'PRODUCT_CREATED',
+      resource: 'Product',
+      resourceId: newProduct._id,
+      details: {
+        productName: name,
+        price: price,
+        categoryId: category_id,
+        isFeatured,
+        isOnSale
+      },
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown',
+      severity: 'LOW',
+      status: 'SUCCESS',
+      apiEndpoint: req.originalUrl,
+      httpMethod: req.method
+    });
+
     return res.status(201).json({ success: true, message: "Thêm sản phẩm thành công", data: newProduct });
   } catch (error) {
     if (req.file) {
@@ -93,6 +116,30 @@ const updateProduct = async (req, res) => {
       { name, description, price, category_id, ingredients, isOnSale: isOnSaleBool, isFeatured: isFeaturedBool, discountPrice, imgUrl },
       { new: true }
     );
+
+    // Log audit event
+    await AuditLog.createLog({
+      userId: req.user?.id,
+      action: 'PRODUCT_UPDATED',
+      resource: 'Product',
+      resourceId: id,
+      details: {
+        productName: name || existingProduct.name,
+        oldPrice: existingProduct.price,
+        newPrice: price,
+        categoryId: category_id,
+        imageUpdated: !!req.file,
+        isFeatured: isFeaturedBool,
+        isOnSale: isOnSaleBool
+      },
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown',
+      severity: 'LOW',
+      status: 'SUCCESS',
+      apiEndpoint: req.originalUrl,
+      httpMethod: req.method
+    });
+
     return res.status(200).json({ success: true, message: "Cập nhật sản phẩm thành công", data: updatedProduct });
   } catch (error) {
     if (req.file) {
@@ -120,6 +167,27 @@ const deleteProduct = async (req, res) => {
     }
     // Xóa sản phẩm
     await productModel.findByIdAndDelete(id);
+
+    // Log audit event
+    await AuditLog.createLog({
+      userId: req.user?.id,
+      action: 'PRODUCT_DELETED',
+      resource: 'Product',
+      resourceId: id,
+      details: {
+        productName: product.name,
+        price: product.price,
+        categoryId: product.category_id,
+        imageDeleted: !!product.imgUrl
+      },
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown',
+      severity: 'MEDIUM',
+      status: 'SUCCESS',
+      apiEndpoint: req.originalUrl,
+      httpMethod: req.method
+    });
+
     return standardResponse(res, 200, {
       success: true,
       message: "Xóa sản phẩm thành công",

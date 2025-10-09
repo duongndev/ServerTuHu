@@ -1,8 +1,34 @@
 import express from "express";
 const app = express();
 import { connectDB, connectCloudinary } from "../src/config/db.js";
-import cors from "cors";
 import { notFound, errorHandler } from "../src/middlewares/middleware.js";
+import { securityMiddleware } from "../src/middlewares/securityHeaders.middleware.js";
+import { 
+  sessionConfig, 
+  cookieSecurityMiddleware, 
+  validateSession, 
+  clearInsecureCookies,
+  sessionRateLimitMiddleware 
+} from "../src/middlewares/sessionSecurity.middleware.js";
+import { 
+  sanitizeInputs, 
+  detectSQLInjection 
+} from "../src/middlewares/inputValidation.middleware.js";
+import { 
+  noSQLSanitizer, 
+  detectNoSQLInjection, 
+  validateMongoQueries,
+  logDatabaseQueries,
+  preventEnumeration 
+} from "../src/middlewares/databaseSecurity.middleware.js";
+import { 
+  generalRateLimit, 
+  progressiveSlowDown, 
+  adaptiveRateLimit,
+  trackFailedAttempts,
+  ddosProtection 
+} from "../src/middlewares/rateLimiting.middleware.js";
+import session from "express-session";
 import logger from "morgan";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
@@ -13,12 +39,40 @@ dotenv.config();
 connectDB();
 connectCloudinary();
 
+// Apply security middleware first
+app.use(securityMiddleware);
+
+// Session and cookie security
+app.use(clearInsecureCookies);
+app.use(cookieParser());
+app.use(cookieSecurityMiddleware);
+app.use(session(sessionConfig));
+app.use(sessionRateLimitMiddleware);
+app.use(validateSession);
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(cors());
+
+// Input validation and sanitization
+app.use(sanitizeInputs);
+app.use(detectSQLInjection);
+
+// Database security
+app.use(noSQLSanitizer);
+app.use(detectNoSQLInjection);
+app.use(validateMongoQueries);
+app.use(logDatabaseQueries);
+app.use(preventEnumeration);
+
+// Rate limiting and DDoS protection
+app.use(ddosProtection);
+app.use(generalRateLimit);
+app.use(progressiveSlowDown);
+app.use(adaptiveRateLimit);
+app.use(trackFailedAttempts);
+
 app.use(logger("dev"));
-app.use(cookieParser());
 
 // routes
 import orderRoutes from "./routes/order.router.js";
@@ -55,6 +109,31 @@ app.get("/", (req, res) => {
     message: "Server is running",
   });
 });
+
+// import data 
+import {
+  importCategory,
+  importProduct,
+  importUser,
+} from "./scripts/generateData.js";
+
+app.get("/import-data", async (req, res) => {
+  try {
+    // await importCategory();
+    // await importProduct();
+    await importUser();
+    res.json({
+      success: true,
+      message: "Import data successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 
 
 app.use(notFound);

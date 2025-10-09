@@ -1,5 +1,5 @@
 import bannerModel from "../models/banner.model.js";
-import { standardResponse } from "../utils/utility.function.js";
+import { standardResponse } from "../middlewares/middleware.js";
 import cloudinary from "../config/cloudinary.config.js";
 import fs from "fs/promises";
 
@@ -12,7 +12,7 @@ const createBanner = async (req, res) => {
     if (!req.files || req.files.length === 0) {
       return standardResponse(res, 400, {
         success: false,
-        message: "Vui lòng tải lên hình ảnh",
+        message: "Please upload an image file",
       });
     }
 
