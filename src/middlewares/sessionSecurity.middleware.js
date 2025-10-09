@@ -26,7 +26,11 @@ const sessionConfig = {
     touchAfter: 24 * 3600, // Lazy session update
     crypto: {
       secret: process.env.SESSION_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex')
-    }
+    },
+    autoRemove: 'disabled', // Disable automatic cleanup to avoid index issues
+    createIndexes: false, // Disable automatic index creation
+    stringify: false, // Use native MongoDB storage
+    transformId: (id) => id // Don't transform session IDs
   }) : undefined
 };
 

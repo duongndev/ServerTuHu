@@ -9,7 +9,6 @@ package-lock.json
 .env
 .env.local
 .env.development
-.env.test
 .env.production
 *.env
 
@@ -19,7 +18,6 @@ src/config/*.json
 *.json
 !package.json
 !package-lock.json
-!jest.config.js
 
 # Database
 *.db
@@ -42,10 +40,7 @@ pids/
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-.nyc_output
+
 
 # Dependency directories
 jspm_packages/
@@ -65,9 +60,6 @@ node_modules/
 
 # Yarn Integrity file
 .yarn-integrity
-
-# dotenv environment variables file
-.env.test
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache/
@@ -132,11 +124,7 @@ images/
 *.ico
 *.webp
 
-# Test files and coverage
-tests/
-test-results/
-coverage/
-.nyc_output/
+
 
 # Scripts (development and seeding scripts)
 scripts/

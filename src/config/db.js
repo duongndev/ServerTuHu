@@ -21,9 +21,7 @@ const connectDB = async () => {
     // Setup connection monitoring
     secureDBConnection.setupConnectionMonitoring(mongoose);
     
-    if (process.env.NODE_ENV !== 'test') {
-      console.log("MongoDB connection successful with security options");
-    }
+    console.log("MongoDB connection successful");
   } catch (error) {
     console.error("MongoDB connection fail");
     console.error(error);
