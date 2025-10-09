@@ -22,7 +22,13 @@ const sessionConfig = {
     sameSite: 'strict' // CSRF protection
   },
   store: process.env.MONGO_URI ? MongoStore.create({
-    mongoUrl: process.env.MONGO_URI,
+    mongoUrl: `${process.env.MONGO_URI}${process.env.DB_NAME}`,
+    mongoOptions: {
+      auth: {
+        username: process.env.DB_USER,
+        password: process.env.DB_PASS
+      }
+    },
     touchAfter: 24 * 3600, // Lazy session update
     crypto: {
       secret: process.env.SESSION_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex')

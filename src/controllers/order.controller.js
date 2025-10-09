@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import productModel from "../models/product.model.js";
 import userModel from "../models/user.model.js";
 import cartModel from "../models/cart.model.js";
@@ -42,6 +43,9 @@ const validPaymentMethods = ["cash", "zalopay", "momo", "vnpay"];
  * @return {Promise<Object>} - trả về thông tin đơn hàng
  */
 const createOrder = async (req, res) => {
+  // Start a MongoDB session for transaction
+  const session = await mongoose.startSession();
+  
   try {
     const {
       items,
@@ -52,6 +56,9 @@ const createOrder = async (req, res) => {
       delivery_fee,
     } = req.body;
     const user_id = req.user._id;
+
+    // Start transaction
+    await session.startTransaction();
     // Validate đầu vào
     if (
       !items ||
@@ -71,8 +78,9 @@ const createOrder = async (req, res) => {
       });
     }
     // Validate user
-    const user = await userModel.findById(user_id);
+    const user = await userModel.findById(user_id).session(session);
     if (!user) {
+      await session.abortTransaction();
       return standardResponse(res, 404, {
         success: false,
         message: "Không tìm thấy người dùng",
@@ -83,6 +91,7 @@ const createOrder = async (req, res) => {
     let subtotal = 0;
     for (const { product_id, quantity } of items) {
       if (!product_id || !quantity || quantity <= 0) {
+        await session.abortTransaction();
         return standardResponse(res, 400, {
           success: false,
           message: "Thông tin sản phẩm không hợp lệ",
@@ -90,14 +99,17 @@ const createOrder = async (req, res) => {
       }
       const product = await productModel
         .findById(product_id)
-        .select("name price discountPrice isOnSale inventory isAvailable");
+        .select("name price discountPrice isOnSale inventory isAvailable")
+        .session(session);
       if (!product) {
+        await session.abortTransaction();
         return standardResponse(res, 404, {
           success: false,
           message: `Không tìm thấy sản phẩm có ID: ${product_id}`,
         });
       }
       if (!product.isAvailable) {
+        await session.abortTransaction();
         return standardResponse(res, 400, {
           success: false,
           message: `Sản phẩm ${product.name} hiện không có sẵn`,
@@ -114,14 +126,16 @@ const createOrder = async (req, res) => {
       const coupon = await discountCouponModel.findOne({
         code: coupo_code,
         isActive: true,
-      });
+      }).session(session);
       if (!coupon) {
+        await session.abortTransaction();
         return standardResponse(res, 400, {
           success: false,
           message: "Mã giảm giá không hợp lệ",
         });
       }
       if (coupon.usageLimit && coupon.usageLimit <= coupon.usedCount) {
+        await session.abortTransaction();
         return standardResponse(res, 400, {
           success: false,
           message: "Mã giảm giá đã hết lượt sử dụng",
@@ -129,6 +143,7 @@ const createOrder = async (req, res) => {
       }
       const orderSubtotal = subtotal + Number(delivery_fee);
       if (orderSubtotal < coupon.minimumOrderAmount) {
+        await session.abortTransaction();
         return standardResponse(res, 400, {
           success: false,
           message: "Số tiền tối thiểu của đơn hàng không hợp lệ",
@@ -140,11 +155,12 @@ const createOrder = async (req, res) => {
           : coupon.discountValue;
       await discountCouponModel.updateOne(
         { _id: coupon._id },
-        { $inc: { usedCount: 1 } }
+        { $inc: { usedCount: 1 } },
+        { session }
       );
     }
     // Tạo đơn hàng
-    const order = await orderModel.create({
+    const order = await orderModel.create([{
       user_id,
       items: orderItems,
       shipping_address: {
@@ -159,9 +175,9 @@ const createOrder = async (req, res) => {
       total_price: subtotal + Number(delivery_fee) - discountAmount,
       notes,
       coupon_code: coupo_code,
-    });
+    }], { session });
     // Xóa sản phẩm đã đặt khỏi giỏ hàng
-    const cart = await cartModel.findOne({ user_id });
+    const cart = await cartModel.findOne({ user_id }).session(session);
     if (cart) {
       cart.items = cart.items.filter(
         (ci) =>
@@ -173,37 +189,33 @@ const createOrder = async (req, res) => {
         (sum, ci) => sum + ci.price * ci.quantity,
         0
       );
-      await cart.save();
+      await cart.save({ session });
     }
     // Gửi thông báo cho admin qua Firebase
     try {
       await sendToAdmin({
         title: "Bạn có đơn hàng mới",
-        message: `Mã đơn hàng: ${order._id}. Tổng tiền: ${order.total_price}`,
+        message: `Mã đơn hàng: ${order[0]._id}. Tổng tiền: ${order[0].total_price}`,
         type: "order_new",
         sender: user_id,
-        order_id: order._id,
+        order_id: order[0]._id,
       });
     } catch (error) {
-      console.log(error);
-      return standardResponse(res, 500, {
-        success: false,
-        message: "Lỗi khi gửi thông báo đến admin",
-        error: error.message,
-      });
+      console.log("Notification error:", error);
+      // Don't abort transaction for notification errors, just log them
     }
     // Log audit event
     await AuditLog.createLog({
       userId: user_id,
       action: 'ORDER_CREATED',
       resource: 'Order',
-      resourceId: order._id,
+      resourceId: order[0]._id,
       details: {
-        totalPrice: order.total_price,
-        itemCount: order.items.length,
+        totalPrice: order[0].total_price,
+        itemCount: order[0].items.length,
         paymentMethod: payment_method,
         couponUsed: !!coupo_code,
-        shippingFee: order.shipping_fee
+        shippingFee: order[0].shipping_fee
       },
       ipAddress: req.ip || req.connection.remoteAddress,
       userAgent: req.get('User-Agent') || 'Unknown',
@@ -211,19 +223,27 @@ const createOrder = async (req, res) => {
       status: 'SUCCESS',
       apiEndpoint: req.originalUrl,
       httpMethod: req.method
-    });
+    }, session);
+
+    // Commit transaction
+    await session.commitTransaction();
 
     return standardResponse(res, 201, {
       success: true,
       message: "Tạo đơn hàng thành công",
-      data: order,
+      data: order[0],
     });
   } catch (error) {
+    // Abort transaction on error
+    await session.abortTransaction();
     console.log(error);
     return res.status(500).json({
       success: false,
       message: "Đã xảy ra lỗi, vui lòng thử lại sau.",
     });
+  } finally {
+    // End session
+    await session.endSession();
   }
 };
 

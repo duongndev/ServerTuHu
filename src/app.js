@@ -1,6 +1,7 @@
 import express from "express";
 const app = express();
 import { connectDB, connectCloudinary } from "../src/config/db.js";
+import mongoose from "mongoose";
 import { notFound, errorHandler } from "../src/middlewares/middleware.js";
 import { securityMiddleware } from "../src/middlewares/securityHeaders.middleware.js";
 import { 
@@ -88,6 +89,7 @@ import cartRoutes from "./routes/cart.router.js";
 import notificationRouter from "./routes/notification.router.js";
 import statisticsRouter from "./routes/statistics.router.js";
 import bannerRoutes from "./routes/banner.routes.js";
+import healthRoutes from "./routes/health.router.js";
 
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
@@ -102,6 +104,7 @@ app.use("/api/shipping", shippingRoutes);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/statistics", statisticsRouter);
 app.use("/api/banners", bannerRoutes);
+app.use("/health", healthRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({
@@ -110,29 +113,8 @@ app.get("/", (req, res) => {
   });
 });
 
-// import data 
-import {
-  importCategory,
-  importProduct,
-  importUser,
-} from "./scripts/generateData.js";
 
-app.get("/import-data", async (req, res) => {
-  try {
-    // await importCategory();
-    // await importProduct();
-    await importUser();
-    res.json({
-      success: true,
-      message: "Import data successfully",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
+
 
 
 

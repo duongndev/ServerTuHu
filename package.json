@@ -13,7 +13,7 @@
   "dependencies": {
     "@faker-js/faker": "^9.7.0",
     "@googlemaps/google-maps-services-js": "^3.4.2",
-    "adminjs": "^7.8.17",
+    "@tinymce/tinymce-react": "^6.3.0",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
@@ -39,16 +39,15 @@
     "helmet": "^8.1.0",
     "jsdom": "^27.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose-sanitizer": "^1.0.0",
     "mongoose-sequence": "^6.0.1",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.2",
-    "nodemailer": "^6.9.16",
+    "nodemailer": "^7.0.9",
     "nodemon": "^3.1.7",
     "path": "^0.12.7",
     "socket.io": "^4.8.1",
+    "tinymce": "^8.1.2",
     "validator": "^13.15.15",
-    "xlsx": "^0.18.5",
     "xss": "^1.0.15"
   },
   "devDependencies": {
