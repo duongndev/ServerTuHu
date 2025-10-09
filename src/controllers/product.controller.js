@@ -212,18 +212,18 @@ const getAllProducts = async (req, res) => {
     const total = await productModel.countDocuments();
     const products = await productModel.find().skip(skip).limit(limit);
     // Lấy tên thể loại cho từng sản phẩm
-    const data = await Promise.all(
-      products.map(async (product) => {
-        const category = await categoryModel.findOne({
-          _id: product.category_id,
-        });
-        return { ...product._doc, category: category ? category.name : null };
-      })
-    );
+    // const data = await Promise.all(
+    //   products.map(async (product) => {
+    //     const category = await categoryModel.findOne({
+    //       _id: product.category_id,
+    //     });
+    //     return { ...product._doc, category: category ? category.name : null };
+    //   })
+    // );
     return standardResponse(res, 200, {
       success: true,
       message: "Lấy danh sách sản phẩm thành công",
-      data,
+      data: products,
       pagination: {
         total,
         page,
@@ -301,15 +301,25 @@ const getProductById = async (req, res) => {
 
 // Lấy sản phẩm theo category id
 const getProductByCategoryId = async (req, res) => {
-  const { id } = req.params;
   try {
+    const { id } = req.params; 
+    const { page = 1, limit = 10 } = req.query;
     const category = await findCategoryOr404(categoryModel, id, res);
     if (!category) return;
-    const products = await productModel.find({ category_id: id });
+    const products = await productModel.find({ category_id: id })
+      .skip((page - 1) * limit)
+      .limit(limit);
+    const total = await productModel.countDocuments({ category_id: id });
     return standardResponse(res, 200, {
       success: true,
       message: "Lấy sản phẩm theo thể loại thành công",
       data: products,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     return standardResponse(res, 500, {
@@ -321,21 +331,95 @@ const getProductByCategoryId = async (req, res) => {
 
 // Tìm kiếm sản phẩm theo tên
 const searchProductByName = async (req, res) => {
-  const { name } = req.query;
+  const { name, page = 1, limit = 10, sortBy = 'name', sortOrder = 'asc' } = req.query;
+  
   try {
-    const products = await productModel.find({
-      name: { $regex: new RegExp(name), $options: "i" },
-    });
-    if (!products || products.length === 0)
+    // Validation và sanitization
+    if (!name || typeof name !== 'string') {
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Từ khóa tìm kiếm không hợp lệ",
+      });
+    }
+
+    const searchTerm = name.trim();
+    if (searchTerm.length < 2) {
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Từ khóa tìm kiếm phải có ít nhất 2 ký tự",
+      });
+    }
+
+    // Tạo query tìm kiếm tối ưu
+    const searchQuery = {
+      $and: [
+        { isAvailable: true }, // Chỉ tìm sản phẩm có sẵn
+        {
+          $or: [
+            { name: { $regex: searchTerm, $options: "i" } },
+          ]
+        }
+      ]
+    };
+
+    // Pagination
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit))); // Giới hạn tối đa 50 items
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sorting
+    const sortOptions = {};
+    const validSortFields = ['name', 'price', 'averageRating', 'createdAt'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'name';
+    const sortDirection = sortOrder === 'desc' ? -1 : 1;
+    sortOptions[sortField] = sortDirection;
+
+    // Thực hiện tìm kiếm với projection để tối ưu performance
+    const [products, totalCount] = await Promise.all([
+      productModel
+        .find(searchQuery)
+        .select('name description price discountPrice imgUrl isOnSale averageRating totalReviews category_id')
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limitNum)
+        .lean(), // Sử dụng lean() để tăng performance
+      productModel.countDocuments(searchQuery)
+    ]);
+
+    if (!products || products.length === 0) {
       return standardResponse(res, 404, {
         success: false,
-        message: "Không tìm thấy sản phẩm",
+        message: "Không tìm thấy sản phẩm nào phù hợp",
+        data: {
+          products: [],
+          pagination: {
+            total: totalCount,
+            page: pageNum,
+            totalPages: Math.ceil(totalCount / limitNum),
+            limit: limitNum,
+          }
+        }
       });
+    }
+
+    // Tính toán pagination info
+    const totalPages = Math.ceil(totalCount / limitNum);
+
     return standardResponse(res, 200, {
       success: true,
-      message: "Tìm kiếm sản phẩm thành công",
-      data: products,
+      message: `Tìm thấy ${totalCount} sản phẩm phù hợp`,
+      data: {
+        products,
+        pagination: {
+          total: totalCount,
+          page: pageNum,
+          totalPages,
+          limit: limitNum,
+        },
+        searchTerm: searchTerm
+      }
     });
+
   } catch (error) {
     console.error("[searchProductByName]", error, error.stack);
     return standardResponse(res, 500, {
