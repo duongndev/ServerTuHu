@@ -117,7 +117,6 @@ ServerTuHu/
 │   ├── services/           # External services
 │   ├── utils/              # Utility functions
 │   └── views/              # Email templates
-├── scripts/                # Data seeding scripts
 
 ├── .env                    # Environment variables
 ├── server.js              # Entry point
