@@ -85,5 +85,5 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/tuhu-bread:${{ github.run_number }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/tuhu-bread:latest
