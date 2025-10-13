@@ -149,6 +149,10 @@ docker-compose*.yml
 *.yml
 !docker-compose*.yml
 
+# GitHub Actions workflows
+!.github/workflows/*.yml
+!.github/workflows/*.yaml
+
 # Terraform
 *.tfstate
 *.tfstate.*

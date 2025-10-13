@@ -47,7 +47,8 @@ const hashPassword = async (password) => {
 };
 
 const comparePassword = async (password, hash) => {
-  return await bcrypt.compare(password, hash);
+  const result = await bcrypt.compare(password, hash);
+  return result;
 };
 
 // Helper: Chuẩn hóa response trả về
@@ -60,8 +61,17 @@ function standardResponse(res, status, { success, message, data = null, paginati
 
 // Helper: Validate email format
 function validateEmail(email) {
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return typeof email === 'string' && emailRegex.test(email);
+  // RFC 5322 compliant email regex that allows dots, plus signs, and other valid characters
+  // But prevents consecutive dots, leading/trailing dots
+  const emailRegex = /^[a-zA-Z0-9]([a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$/;
+  
+  // Additional checks for edge cases
+  if (!email || typeof email !== 'string') return false;
+  if (email.includes('..')) return false; // No consecutive dots
+  if (email.startsWith('.') || email.endsWith('.')) return false; // No leading/trailing dots
+  if (email.includes('@.') || email.includes('.@')) return false; // No dots adjacent to @
+  
+  return emailRegex.test(email);
 }
 
 // Helper: Validate password strength

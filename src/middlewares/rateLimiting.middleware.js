@@ -205,7 +205,7 @@ export const trackFailedAttempts = (req, res, next) => {
       
       failedAttempts.set(clientId, attempts);
       
-      logSecurityEvent(req, 'FAILED_AUTH_ATTEMPT_TRACKED', {
+      logSecurityEvent('FAILED_AUTH_ATTEMPT_TRACKED', {
         ip: req.ip,
         userAgent: req.get('User-Agent'),
         endpoint: req.originalUrl,
@@ -247,7 +247,7 @@ export const ddosProtection = rateLimit({
 // Burst protection for specific endpoints
 export const burstProtection = rateLimit({
   windowMs: 1000, // 1 second
-  max: 5, // Max 5 requests per second
+  max: 10, // Max 10 requests per second 
   message: {
     error: 'Request burst detected. Please slow down.',
     retryAfter: '1 second'

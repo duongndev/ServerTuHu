@@ -19,9 +19,10 @@ import { createSecureSession, destroySecureSession } from "../middlewares/sessio
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent') || 'Unknown';
-
+  
+  const ipAddress = req.ip || req.connection.remoteAddress;
+  const userAgent = req.get('User-Agent') || 'Unknown';
+  
     if (!email || !password) {
       // Log failed login attempt
       await AuditLog.createLog({
@@ -56,15 +57,20 @@ const login = async (req, res) => {
     }
 
     const user = await userModel.findOne({ email });
+    
     if (!user) {
-      await AuditLog.createLog({
-        action: 'LOGIN_FAILED',
-        details: { reason: 'User not found', email },
-        ipAddress,
-        userAgent,
-        severity: 'MEDIUM',
-        status: 'FAILED'
-      });
+      try {
+        await AuditLog.createLog({
+          action: 'LOGIN_FAILED',
+          details: { reason: 'User not found', email },
+          ipAddress,
+          userAgent,
+          severity: 'MEDIUM',
+          status: 'FAILED'
+        });
+      } catch (auditError) {
+        console.error('AuditLog creation error:', auditError);
+      }
 
       return standardResponse(res, 401, {
         success: false,
@@ -230,8 +236,8 @@ const register = async (req, res) => {
         message: "Email already exists",  
       });
     }
-    const hashed = await hashPassword(password);
-    const newUser = new userModel({ fullName, email, password: hashed });
+
+    const newUser = new userModel({ fullName, email, password });
     await newUser.save();
     return standardResponse(res, 201, {
       success: true,

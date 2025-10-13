@@ -129,7 +129,7 @@ const userValidationRules = {
   register: [
     body('email')
       .isEmail()
-      .normalizeEmail()
+      .normalizeEmail({ gmail_remove_dots: false })
       .withMessage('Invalid email format')
       .isLength({ max: 100 })
       .withMessage('Email too long'),
@@ -155,9 +155,9 @@ const userValidationRules = {
   login: [
     body('email')
       .isEmail()
-      .normalizeEmail()
+      .normalizeEmail({ gmail_remove_dots: false })
       .withMessage('Invalid email format'),
-    
+
     body('password')
       .isLength({ min: 1 })
       .withMessage('Password is required')

@@ -53,7 +53,7 @@ const validateRegister = [
   body('email')
     .isEmail()
     .withMessage('Email không hợp lệ')
-    .normalizeEmail()
+    .normalizeEmail({ gmail_remove_dots: false })
     .isLength({ max: 100 })
     .withMessage('Email không được quá 100 ký tự'),
   
@@ -94,12 +94,12 @@ const validateLogin = [
     .withMessage('Email không được để trống')
     .isEmail()
     .withMessage('Email không hợp lệ')
-    .normalizeEmail(),
-  
+    .normalizeEmail({ gmail_remove_dots: false }),
+
   body('password')
     .notEmpty()
     .withMessage('Mật khẩu không được để trống'),
-  
+
   handleValidationErrors
 ];
 
@@ -121,8 +121,8 @@ const validateForgotPassword = [
     .withMessage('Email không được để trống')
     .isEmail()
     .withMessage('Email không hợp lệ')
-    .normalizeEmail(),
-  
+    .normalizeEmail({ gmail_remove_dots: false }),
+
   handleValidationErrors
 ];
 

@@ -1,0 +1,67 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
+      PORT: 5000
+      # MongoDB Atlas
+      MONGO_URI: ${{ secrets.MONGO_ATLAS_URI }}
+      DB_NAME: ${{ secrets.MONGO_ATLAS_DB }}
+      DB_USER: ${{ secrets.MONGO_ATLAS_USER }}
+      DB_PASS: ${{ secrets.MONGO_ATLAS_PASS }}
+      # App secrets
+      JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+      JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+      SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+      SESSION_ENCRYPTION_KEY: ${{ secrets.SESSION_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - run: npm install
+      - name: Run smoke test
+        run: |
+          node server.js &
+          for i in {1..30}; do
+            if curl -fsS http://localhost:5000/health > /dev/null; then
+              echo "Health OK"; exit 0; fi
+            echo "Waiting for health... ($i)"; sleep 2; done
+          echo "Health check failed"; curl -v http://localhost:5000/health || true; exit 1
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push image to Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest

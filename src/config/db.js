@@ -13,7 +13,7 @@ const connectDB = async () => {
       user: process.env.DB_USER,
       pass: process.env.DB_PASS,
       dbName: process.env.DB_NAME,
-      ...secureDBConnection.mongooseOptions
+      ...secureDBConnection.getSecureConnectionOptions()
     };
     
     await mongoose.connect(process.env.MONGO_URI, connectionOptions);
