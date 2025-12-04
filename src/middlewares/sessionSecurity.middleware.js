@@ -226,7 +226,7 @@ const sessionRateLimitMiddleware = async (req, res, next) => {
   const clientId = req.ip || req.connection.remoteAddress;
   const now = Date.now();
   const windowMs = 15 * 60 * 1000; // 15 minutes
-  const maxAttempts = 10; // Max 10 session operations per window
+  const maxAttempts = 500; // Max number of session operations per window
   
   if (!sessionRateLimit.has(clientId)) {
     sessionRateLimit.set(clientId, { count: 1, resetTime: now + windowMs });

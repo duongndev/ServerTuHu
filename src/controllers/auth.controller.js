@@ -7,31 +7,34 @@ import {
   verifyRefreshToken,
   validateEmail,
   validatePassword,
-  logSecurityEvent
+  logSecurityEvent,
 } from "../utils/utility.function.js";
 import OTPModel from "../models/otp.model.js";
 import { sendOTPEmail } from "../service/email.service.js";
 import { standardResponse } from "../middlewares/middleware.js";
 import AuditLog from "../models/auditLog.model.js";
-import { createSecureSession, destroySecureSession } from "../middlewares/sessionSecurity.middleware.js";
+import {
+  createSecureSession,
+  destroySecureSession,
+} from "../middlewares/sessionSecurity.middleware.js";
 
 // Đăng nhập
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-  
-  const ipAddress = req.ip || req.connection.remoteAddress;
-  const userAgent = req.get('User-Agent') || 'Unknown';
-  
+
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get("User-Agent") || "Unknown";
+
     if (!email || !password) {
       // Log failed login attempt
       await AuditLog.createLog({
-        action: 'LOGIN_FAILED',
-        details: { reason: 'Missing credentials', email },
+        action: "LOGIN_FAILED",
+        details: { reason: "Missing credentials", email },
         ipAddress,
         userAgent,
-        severity: 'MEDIUM',
-        status: 'FAILED'
+        severity: "MEDIUM",
+        status: "FAILED",
       });
 
       return standardResponse(res, 400, {
@@ -42,12 +45,12 @@ const login = async (req, res) => {
 
     if (!validateEmail(email)) {
       await AuditLog.createLog({
-        action: 'LOGIN_FAILED',
-        details: { reason: 'Invalid email format', email },
+        action: "LOGIN_FAILED",
+        details: { reason: "Invalid email format", email },
         ipAddress,
         userAgent,
-        severity: 'MEDIUM',
-        status: 'FAILED'
+        severity: "MEDIUM",
+        status: "FAILED",
       });
 
       return standardResponse(res, 400, {
@@ -57,19 +60,19 @@ const login = async (req, res) => {
     }
 
     const user = await userModel.findOne({ email });
-    
+
     if (!user) {
       try {
         await AuditLog.createLog({
-          action: 'LOGIN_FAILED',
-          details: { reason: 'User not found', email },
+          action: "LOGIN_FAILED",
+          details: { reason: "User not found", email },
           ipAddress,
           userAgent,
-          severity: 'MEDIUM',
-          status: 'FAILED'
+          severity: "MEDIUM",
+          status: "FAILED",
         });
       } catch (auditError) {
-        console.error('AuditLog creation error:', auditError);
+        console.error("AuditLog creation error:", auditError);
       }
 
       return standardResponse(res, 401, {
@@ -82,17 +85,18 @@ const login = async (req, res) => {
     if (user.isLocked) {
       await AuditLog.createLog({
         userId: user._id,
-        action: 'LOGIN_FAILED',
-        details: { reason: 'Account locked', email },
+        action: "LOGIN_FAILED",
+        details: { reason: "Account locked", email },
         ipAddress,
         userAgent,
-        severity: 'HIGH',
-        status: 'BLOCKED'
+        severity: "HIGH",
+        status: "BLOCKED",
       });
 
       return standardResponse(res, 423, {
         success: false,
-        message: "Account is temporarily locked due to too many failed login attempts",
+        message:
+          "Account is temporarily locked due to too many failed login attempts",
       });
     }
 
@@ -100,12 +104,12 @@ const login = async (req, res) => {
     if (user.isBlocked) {
       await AuditLog.createLog({
         userId: user._id,
-        action: 'LOGIN_FAILED',
-        details: { reason: 'Account blocked', email },
+        action: "LOGIN_FAILED",
+        details: { reason: "Account blocked", email },
         ipAddress,
         userAgent,
-        severity: 'HIGH',
-        status: 'BLOCKED'
+        severity: "HIGH",
+        status: "BLOCKED",
       });
 
       return standardResponse(res, 403, {
@@ -121,12 +125,16 @@ const login = async (req, res) => {
 
       await AuditLog.createLog({
         userId: user._id,
-        action: 'LOGIN_FAILED',
-        details: { reason: 'Incorrect password', email, attempts: user.loginAttempts + 1 },
+        action: "LOGIN_FAILED",
+        details: {
+          reason: "Incorrect password",
+          email,
+          attempts: user.loginAttempts + 1,
+        },
         ipAddress,
         userAgent,
-        severity: 'MEDIUM',
-        status: 'FAILED'
+        severity: "MEDIUM",
+        status: "FAILED",
       });
 
       return standardResponse(res, 401, {
@@ -155,29 +163,23 @@ const login = async (req, res) => {
     const sessionId = await createSecureSession(req, user);
 
     // Set secure cookies
-    res.cookie('accessToken', accessToken, { 
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 15 * 60 * 1000 // 15 minutes
-    });
 
-    res.cookie('refreshToken', refreshToken, { 
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     // Log successful login
     await AuditLog.createLog({
       userId: user._id,
-      action: 'LOGIN_SUCCESS',
+      action: "LOGIN_SUCCESS",
       details: { email, sessionId },
       ipAddress,
       userAgent,
-      severity: 'LOW',
-      status: 'SUCCESS'
+      severity: "LOW",
+      status: "SUCCESS",
     });
 
     return standardResponse(res, 200, {
@@ -193,13 +195,13 @@ const login = async (req, res) => {
           role: user.role,
           avatar: user.avatar,
           status: user.status,
-          lastLogin: user.lastLogin
+          lastLogin: user.lastLogin,
         },
       },
     });
   } catch (error) {
-    await logSecurityEvent('LOGIN_ERROR', { error: error.message }, req);
-    
+    await logSecurityEvent("LOGIN_ERROR", { error: error.message }, req);
+
     return standardResponse(res, 500, {
       success: false,
       message: "Internal server error",
@@ -233,7 +235,7 @@ const register = async (req, res) => {
     if (existed) {
       return standardResponse(res, 400, {
         success: false,
-        message: "Email already exists",  
+        message: "Email already exists",
       });
     }
 
@@ -261,24 +263,24 @@ const logout = async (req, res) => {
   try {
     const userId = req.user?.id;
     const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent') || 'Unknown';
+    const userAgent = req.get("User-Agent") || "Unknown";
     const sessionId = req.sessionID;
 
     // Clear refresh token from database
     if (userId) {
-      await userModel.findByIdAndUpdate(userId, { 
-        $unset: { refreshToken: 1 } 
+      await userModel.findByIdAndUpdate(userId, {
+        $unset: { refreshToken: 1 },
       });
 
       // Log logout
       await AuditLog.createLog({
         userId,
-        action: 'LOGOUT',
-        details: { method: 'manual', sessionId },
+        action: "LOGOUT",
+        details: { method: "manual", sessionId },
         ipAddress,
         userAgent,
-        severity: 'LOW',
-        status: 'SUCCESS'
+        severity: "LOW",
+        status: "SUCCESS",
       });
     }
 
@@ -286,18 +288,18 @@ const logout = async (req, res) => {
     await destroySecureSession(req);
 
     // Clear cookies
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
-    res.clearCookie('token'); // Legacy support
-    res.clearCookie('sessionId'); // Clear session cookie
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+    res.clearCookie("token"); // Legacy support
+    res.clearCookie("sessionId"); // Clear session cookie
 
     return standardResponse(res, 200, {
       success: true,
       message: "Logout successful",
     });
   } catch (error) {
-    await logSecurityEvent('LOGOUT_ERROR', { error: error.message }, req);
-    
+    await logSecurityEvent("LOGOUT_ERROR", { error: error.message }, req);
+
     return standardResponse(res, 500, {
       success: false,
       message: "Internal server error",
@@ -346,14 +348,23 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
-      return standardResponse(res, 400, { success: false, message: "Please enter email" });
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Please enter email",
+      });
     }
     if (!validateEmail(email)) {
-      return standardResponse(res, 400, { success: false, message: "Invalid email format" });
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Invalid email format",
+      });
     }
     const user = await userModel.findOne({ email });
     if (!user) {
-      return standardResponse(res, 404, { success: false, message: "User not found with this email" });
+      return standardResponse(res, 404, {
+        success: false,
+        message: "User not found with this email",
+      });
     }
     // Sinh OTP 6 số
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -364,9 +375,15 @@ const forgotPassword = async (req, res) => {
     await OTPModel.create({ user_id: user._id, email, otp, expiresAt });
     // Gửi email
     await sendOTPEmail(email, otp);
-    return standardResponse(res, 200, { success: true, message: "OTP sent to email. It is valid for 2 minutes." });
+    return standardResponse(res, 200, {
+      success: true,
+      message: "OTP sent to email. It is valid for 2 minutes.",
+    });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: error.message });
+    return standardResponse(res, 500, {
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -375,34 +392,55 @@ const verifyOTP = async (req, res) => {
   try {
     const { otp } = req.body;
     if (!otp) {
-      return standardResponse(res, 400, { success: false, message: "Vui lòng nhập mã OTP" });
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Vui lòng nhập mã OTP",
+      });
     }
-    const otpDoc = await OTPModel.findOne({otp});
+    const otpDoc = await OTPModel.findOne({ otp });
     if (!otpDoc) {
-      return standardResponse(res, 400, { success: false, message: "Mã OTP không đúng" });
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Mã OTP không đúng",
+      });
     }
     if (otpDoc.expiresAt < new Date()) {
       await OTPModel.deleteOne({ _id: otpDoc._id });
-      return standardResponse(res, 400, { success: false, message: "Mã OTP đã hết hạn" });
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Mã OTP đã hết hạn",
+      });
     }
     // Xác thực thành công, xóa OTP
     await OTPModel.deleteOne({ _id: otpDoc._id });
-    return standardResponse(res, 200, { success: true, message: "Xác thực OTP thành công", user_id: otpDoc.user_id });
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Xác thực OTP thành công",
+      user_id: otpDoc.user_id,
+    });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: error.message });
+    return standardResponse(res, 500, {
+      success: false,
+      message: error.message,
+    });
   }
 };
-
 
 const getProfile = async (req, res) => {
   try {
     const user = await userModel.findById(req.user.id).select("-password");
     if (!user) {
-      return standardResponse(res, 404, { success: false, message: "Không tìm thấy người dùng" });
+      return standardResponse(res, 404, {
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
     }
     return standardResponse(res, 200, { success: true, data: user });
   } catch (error) {
-    return standardResponse(res, 500, { success: false, message: error.message });
+    return standardResponse(res, 500, {
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -411,7 +449,7 @@ const refreshToken = async (req, res) => {
   try {
     const { refreshToken: token } = req.cookies;
     const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent') || 'Unknown';
+    const userAgent = req.get("User-Agent") || "Unknown";
 
     if (!token) {
       return standardResponse(res, 401, {
@@ -424,12 +462,12 @@ const refreshToken = async (req, res) => {
     const decoded = await verifyRefreshToken(token);
     if (!decoded) {
       await AuditLog.createLog({
-        action: 'TOKEN_REFRESH',
-        details: { reason: 'Invalid refresh token' },
+        action: "TOKEN_REFRESH",
+        details: { reason: "Invalid refresh token" },
         ipAddress,
         userAgent,
-        severity: 'MEDIUM',
-        status: 'FAILED'
+        severity: "MEDIUM",
+        status: "FAILED",
       });
 
       return standardResponse(res, 401, {
@@ -443,12 +481,12 @@ const refreshToken = async (req, res) => {
     if (!user || user.refreshToken !== token) {
       await AuditLog.createLog({
         userId: decoded.id,
-        action: 'TOKEN_REFRESH',
-        details: { reason: 'Token mismatch or user not found' },
+        action: "TOKEN_REFRESH",
+        details: { reason: "Token mismatch or user not found" },
         ipAddress,
         userAgent,
-        severity: 'HIGH',
-        status: 'FAILED'
+        severity: "HIGH",
+        status: "FAILED",
       });
 
       return standardResponse(res, 401, {
@@ -461,12 +499,12 @@ const refreshToken = async (req, res) => {
     if (user.isBlocked) {
       await AuditLog.createLog({
         userId: user._id,
-        action: 'TOKEN_REFRESH',
-        details: { reason: 'User blocked' },
+        action: "TOKEN_REFRESH",
+        details: { reason: "User blocked" },
         ipAddress,
         userAgent,
-        severity: 'HIGH',
-        status: 'BLOCKED'
+        severity: "HIGH",
+        status: "BLOCKED",
       });
 
       return standardResponse(res, 403, {
@@ -484,29 +522,29 @@ const refreshToken = async (req, res) => {
     await user.save();
 
     // Set new cookies
-    res.cookie('accessToken', newAccessToken, { 
+    res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 15 * 60 * 1000 // 15 minutes
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
-    res.cookie('refreshToken', newRefreshToken, { 
+    res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     // Log successful token refresh
     await AuditLog.createLog({
       userId: user._id,
-      action: 'TOKEN_REFRESH',
+      action: "TOKEN_REFRESH",
       details: { success: true },
       ipAddress,
       userAgent,
-      severity: 'LOW',
-      status: 'SUCCESS'
+      severity: "LOW",
+      status: "SUCCESS",
     });
 
     return standardResponse(res, 200, {
@@ -518,8 +556,12 @@ const refreshToken = async (req, res) => {
       },
     });
   } catch (error) {
-    await logSecurityEvent('TOKEN_REFRESH_ERROR', { error: error.message }, req);
-    
+    await logSecurityEvent(
+      "TOKEN_REFRESH_ERROR",
+      { error: error.message },
+      req
+    );
+
     return standardResponse(res, 500, {
       success: false,
       message: "Internal server error",
@@ -533,7 +575,7 @@ const changePassword = async (req, res) => {
     const { currentPassword, newPassword, confirmPassword } = req.body;
     const userId = req.user.id;
     const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent') || 'Unknown';
+    const userAgent = req.get("User-Agent") || "Unknown";
 
     if (!currentPassword || !newPassword || !confirmPassword) {
       return standardResponse(res, 400, {
@@ -568,16 +610,19 @@ const changePassword = async (req, res) => {
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await comparePassword(currentPassword, user.password);
+    const isCurrentPasswordValid = await comparePassword(
+      currentPassword,
+      user.password
+    );
     if (!isCurrentPasswordValid) {
       await AuditLog.createLog({
         userId,
-        action: 'PASSWORD_CHANGE',
-        details: { reason: 'Invalid current password' },
+        action: "PASSWORD_CHANGE",
+        details: { reason: "Invalid current password" },
         ipAddress,
         userAgent,
-        severity: 'MEDIUM',
-        status: 'FAILED'
+        severity: "MEDIUM",
+        status: "FAILED",
       });
 
       return standardResponse(res, 401, {
@@ -588,39 +633,43 @@ const changePassword = async (req, res) => {
 
     // Hash new password
     const hashedNewPassword = await hashPassword(newPassword);
-    
+
     // Update password and clear refresh token (force re-login)
     await userModel.findByIdAndUpdate(userId, {
       password: hashedNewPassword,
-      $unset: { refreshToken: 1 }
+      $unset: { refreshToken: 1 },
     });
 
     // Log password change
     await AuditLog.createLog({
       userId,
-      action: 'PASSWORD_CHANGE',
+      action: "PASSWORD_CHANGE",
       details: { success: true, sessionId: req.sessionID },
       ipAddress,
       userAgent,
-      severity: 'MEDIUM',
-      status: 'SUCCESS'
+      severity: "MEDIUM",
+      status: "SUCCESS",
     });
 
     // Destroy secure session
     await destroySecureSession(req);
 
     // Clear cookies to force re-login
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
-    res.clearCookie('sessionId');
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+    res.clearCookie("sessionId");
 
     return standardResponse(res, 200, {
       success: true,
       message: "Password changed successfully. Please login again.",
     });
   } catch (error) {
-    await logSecurityEvent('PASSWORD_CHANGE_ERROR', { error: error.message }, req);
-    
+    await logSecurityEvent(
+      "PASSWORD_CHANGE_ERROR",
+      { error: error.message },
+      req
+    );
+
     return standardResponse(res, 500, {
       success: false,
       message: "Internal server error",
@@ -628,14 +677,14 @@ const changePassword = async (req, res) => {
   }
 };
 
-export { 
-  login, 
-  register, 
-  logout, 
-  refreshToken, 
+export {
+  login,
+  register,
+  logout,
+  refreshToken,
   changePassword,
-  updateFCMToken, 
-  forgotPassword, 
-  verifyOTP, 
-  getProfile 
+  updateFCMToken,
+  forgotPassword,
+  verifyOTP,
+  getProfile,
 };
