@@ -26,16 +26,16 @@ import {
   burstProtection 
 } from "../middlewares/rateLimiting.middleware.js";
 
-router.get('/all', queryValidationRules.pagination, queryValidationRules.search, handleValidationErrors, getAllProducts);
-router.get('/search', searchProductByName);
-router.get('/featured', getProductsFeatured);
-router.get('/sale', getProductsSale);
-router.get('/new', getProductsNew);
-router.get('/category/:id', paramValidationRules.mongoId, queryValidationRules.pagination, handleValidationErrors, getProductByCategoryId);
+router.get('/all', burstProtection, queryValidationRules.pagination, queryValidationRules.search, handleValidationErrors, getAllProducts);
+router.get('/search', burstProtection, searchProductByName);
+router.get('/featured', burstProtection, getProductsFeatured);
+router.get('/sale', burstProtection, getProductsSale);
+router.get('/new', burstProtection, getProductsNew);
+router.get('/category/:id', burstProtection, paramValidationRules.mongoId, queryValidationRules.pagination, handleValidationErrors, getProductByCategoryId);
 // Đảm bảo thứ tự: protect -> authorize -> rate limit -> upload -> validation -> controller
 router.post('/create', protect, authorize('admin'), uploadRateLimit, burstProtection, productValidationRules.create, handleValidationErrors, secureUpload.single("file"), validateUploadedFile, createProduct);
 router.put('/update/:id', protect, authorize('admin'), uploadRateLimit, burstProtection, productValidationRules.update, handleValidationErrors, secureUpload.single("file"), validateUploadedFile, updateProduct);
-router.delete('/delete/:id', protect, authorize('admin'), paramValidationRules.mongoId, handleValidationErrors, deleteProduct);
+router.delete('/delete/:id', protect, authorize('admin'), burstProtection, paramValidationRules.mongoId, handleValidationErrors, deleteProduct);
 
 // Rating endpoints
 router.get('/:id/rating-stats', getProductRatingStats);

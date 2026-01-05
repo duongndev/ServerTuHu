@@ -3,14 +3,7 @@ const app = express();
 import { connectDB, connectCloudinary } from "../src/config/db.js";
 import mongoose from "mongoose";
 import { notFound, errorHandler } from "../src/middlewares/middleware.js";
-import { securityMiddleware } from "../src/middlewares/securityHeaders.middleware.js";
-import { 
-  sessionConfig, 
-  cookieSecurityMiddleware, 
-  validateSession, 
-  clearInsecureCookies,
-  sessionRateLimitMiddleware 
-} from "../src/middlewares/sessionSecurity.middleware.js";
+import { securityMiddleware, cookieSecurityMiddleware, clearInsecureCookies } from "../src/middlewares/securityHeaders.middleware.js";
 import { 
   sanitizeInputs, 
   detectSQLInjection 
@@ -29,9 +22,7 @@ import {
   trackFailedAttempts,
   ddosProtection 
 } from "../src/middlewares/rateLimiting.middleware.js";
-import session from "express-session";
 import logger from "morgan";
-import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
 
@@ -41,19 +32,16 @@ connectDB();
 connectCloudinary();
 
 // Apply security middleware first
+app.set('trust proxy', 1);
 app.use(securityMiddleware);
 
 // Session and cookie security
 app.use(clearInsecureCookies);
 app.use(cookieParser());
 app.use(cookieSecurityMiddleware);
-app.use(session(sessionConfig));
-app.use(sessionRateLimitMiddleware);
-app.use(validateSession);
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Input validation and sanitization
 app.use(sanitizeInputs);
@@ -90,6 +78,7 @@ import notificationRouter from "./routes/notification.router.js";
 import statisticsRouter from "./routes/statistics.router.js";
 import bannerRoutes from "./routes/banner.routes.js";
 import healthRoutes from "./routes/health.router.js";
+import zalopayRoutes from "./routes/zalopay.router.js";
 
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
@@ -104,6 +93,7 @@ app.use("/api/shipping", shippingRoutes);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/statistics", statisticsRouter);
 app.use("/api/banners", bannerRoutes);
+app.use("/api/zalopay", zalopayRoutes);
 app.use("/health", healthRoutes);
 
 app.get("/", (req, res) => {

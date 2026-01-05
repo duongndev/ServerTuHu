@@ -4,6 +4,7 @@ import userModel from "../models/user.model.js";
 import cartModel from "../models/cart.model.js";
 import orderModel from "../models/order.model.js";
 import discountCouponModel from "../models/discountCoupon.model.js";
+import ZaloPayService from "../service/zalopay.service.js";
 import {
   sendToAdmin,
   sendToUser,
@@ -51,9 +52,10 @@ const createOrder = async (req, res) => {
       items,
       shipping_address,
       payment_method,
-      coupo_code,
+      coupon_code,
       notes,
       delivery_fee,
+      redirect_url // Nhận thêm redirect_url từ client (để hỗ trợ deep link App)
     } = req.body;
     const user_id = req.user._id;
 
@@ -88,6 +90,7 @@ const createOrder = async (req, res) => {
     }
     // Xử lý sản phẩm và tính tổng
     const orderItems = [];
+    const itemsForZalo = [];
     let subtotal = 0;
     for (const { product_id, quantity } of items) {
       if (!product_id || !quantity || quantity <= 0) {
@@ -119,12 +122,13 @@ const createOrder = async (req, res) => {
       const total = price * quantity;
       subtotal += total;
       orderItems.push({ product_id, price, quantity, total });
+      itemsForZalo.push({ product_id, name: product.name, price, quantity });
     }
     // Xử lý mã giảm giá nếu có
     let discountAmount = 0;
-    if (coupo_code) {
+    if (coupon_code) {
       const coupon = await discountCouponModel.findOne({
-        code: coupo_code,
+        code: coupon_code,
         isActive: true,
       }).session(session);
       if (!coupon) {
@@ -174,7 +178,7 @@ const createOrder = async (req, res) => {
       discount_amount: discountAmount,
       total_price: subtotal + Number(delivery_fee) - discountAmount,
       notes,
-      coupon_code: coupo_code,
+      coupon_code: coupon_code,
     }], { session });
     // Xóa sản phẩm đã đặt khỏi giỏ hàng
     const cart = await cartModel.findOne({ user_id }).session(session);
@@ -214,7 +218,7 @@ const createOrder = async (req, res) => {
         totalPrice: order[0].total_price,
         itemCount: order[0].items.length,
         paymentMethod: payment_method,
-        couponUsed: !!coupo_code,
+        couponUsed: !!coupon_code,
         shippingFee: order[0].shipping_fee
       },
       ipAddress: req.ip || req.connection.remoteAddress,
@@ -228,10 +232,38 @@ const createOrder = async (req, res) => {
     // Commit transaction
     await session.commitTransaction();
 
+    let paymentData = null;
+    if (payment_method === "zalopay") {
+      try {
+        const zaloOrder = {
+          user_id,
+          items: itemsForZalo,
+          total_price: order[0].total_price,
+          _id: order[0]._id,
+          redirect_url, // Truyền redirect_url xuống service
+        };
+        const result = await ZaloPayService.createPaymentRequest(zaloOrder);
+
+        // Update transaction_id
+        await orderModel.findByIdAndUpdate(order[0]._id, {
+          transaction_id: result.app_trans_id,
+        });
+
+        paymentData = result;
+      } catch (err) {
+        console.error("ZaloPay init error:", err);
+        // Don't fail the whole request, but user needs to retry payment
+      }
+    }
+
     return standardResponse(res, 201, {
       success: true,
       message: "Tạo đơn hàng thành công",
-      data: order[0],
+      data: {
+        ...order[0].toObject(),
+        paymentUrl: paymentData ? paymentData.order_url : null,
+        zp_trans_token: paymentData ? paymentData.zp_trans_token : null,
+      },
     });
   } catch (error) {
     // Abort transaction on error

@@ -8,6 +8,7 @@ import {
   updateFCMToken,
   forgotPassword,
   verifyOTP,
+  resetPassword,
   getProfile,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
@@ -28,10 +29,11 @@ router.post('/login', authRateLimit, burstProtection, userValidationRules.login,
 router.post('/logout', burstProtection, logout);
 router.post('/refresh-token', authRateLimit, burstProtection, refreshToken);
 router.post('/change-password', passwordResetRateLimit, burstProtection, protect, changePassword);
-router.post('/forgot-password', forgotPassword);
-router.post('/verify-otp', verifyOTP);
-router.post('/update-fcm-token', protect, updateFCMToken);
-router.get('/profile', protect, getProfile);
+router.post('/forgot-password', passwordResetRateLimit, burstProtection, forgotPassword);
+router.post('/verify-otp', burstProtection, verifyOTP);
+router.post('/reset-password', passwordResetRateLimit, burstProtection, resetPassword);
+router.post('/update-fcm-token', protect, burstProtection, updateFCMToken);
+router.get('/profile', protect, burstProtection, getProfile);
 
 
 export default router;

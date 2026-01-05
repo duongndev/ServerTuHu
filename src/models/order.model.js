@@ -84,6 +84,18 @@ const OrderSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    transaction_id: {
+      type: String,
+      default: null,
+    },
+    zp_trans_id: {
+      type: String, // Mã giao dịch của ZaloPay (cần thiết cho Refund)
+      default: null,
+    },
+    refund_id: {
+      type: String, // Mã yêu cầu hoàn tiền (m_refund_id)
+      default: null,
+    },
     shipping_address: {
       receiver_name: { type: String, required: true },
       phone: { type: String, required: true },

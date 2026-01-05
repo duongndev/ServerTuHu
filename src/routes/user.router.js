@@ -26,11 +26,11 @@ import {
 
 const router = express.Router();
 
-router.get('/all', protect, authorize('admin'), queryValidationRules.pagination, handleValidationErrors, getAllUsers);
-router.get('/me', protect, checkUser);
-router.get('/:id', protect, authorize('admin'), paramValidationRules.mongoId, handleValidationErrors, getUserById);
-router.put('/update/:id', protect, authorize('admin'), paramValidationRules.mongoId, userValidationRules.updateProfile, handleValidationErrors, updateUser);
-router.delete('/delete/:id', protect, authorize('admin'), paramValidationRules.mongoId, handleValidationErrors, deleteUser);
+router.get('/all', protect, authorize('admin'), burstProtection, queryValidationRules.pagination, handleValidationErrors, getAllUsers);
+router.get('/me', protect, burstProtection, checkUser);
+router.get('/:id', protect, authorize('admin'), burstProtection, paramValidationRules.mongoId, handleValidationErrors, getUserById);
+router.put('/update/:id', protect, authorize('admin'), burstProtection, paramValidationRules.mongoId, userValidationRules.updateProfile, handleValidationErrors, updateUser);
+router.delete('/delete/:id', protect, authorize('admin'), burstProtection, paramValidationRules.mongoId, handleValidationErrors, deleteUser);
 router.put('/me/avatar', protect, uploadRateLimit, burstProtection, secureUpload.array('avatar', 1), validateUploadedFile, updateAvatar);
 
 // Error handler for upload errors

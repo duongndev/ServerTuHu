@@ -2,6 +2,7 @@ import express from "express";
 const router = express.Router();
 import * as shippingController from "../controllers/shipping.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
+import { burstProtection } from "../middlewares/rateLimiting.middleware.js";
 import mongoose from "mongoose";
 
 function validateObjectId(req, res, next) {
@@ -16,6 +17,7 @@ function validateObjectId(req, res, next) {
 router.get(
   "/fee/:addressId",
   protect,
+  burstProtection,
   validateObjectId,
   shippingController.calculateShippingFee
 );
@@ -24,6 +26,7 @@ router.get(
 router.post(
   "/fee/calculate",
   protect,
+  burstProtection,
   shippingController.calculateShippingFeeFromAddress
 );
 
@@ -31,11 +34,12 @@ router.post(
 router.get(
   "/address-info/:addressId",
   protect,
+  burstProtection,
   validateObjectId,
   shippingController.getAddressInfo
 );
 
 // Lấy danh sách các trung tâm Hà Nội (public)
-router.get("/centers", shippingController.getHanoiCenters);
+router.get("/centers", burstProtection, shippingController.getHanoiCenters);
 
 export default router;

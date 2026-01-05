@@ -9,7 +9,7 @@ import {
 
 router.post("/", uploadRateLimit, burstProtection, secureUpload.array("banners", 10), validateUploadedFile, bannerCtrl.createBanner);
 
-router.get("/", bannerCtrl.getBanners);
+router.get("/", burstProtection, bannerCtrl.getBanners);
 
 // Error handler for upload errors
 router.use(handleUploadError);

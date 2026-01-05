@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import AuditLog from "../models/auditLog.model.js";
 
 // Tạo access token (thời gian ngắn)
 const newToken = async (user) => {
@@ -12,7 +13,7 @@ const newToken = async (user) => {
     },
     process.env.JWT_ACCESS_SECRET,
     {
-      expiresIn: "15m", // Giảm xuống 15 phút cho bảo mật
+      expiresIn: "15m",
     }
   );
 };
@@ -129,12 +130,24 @@ function isIPAllowed(ip, allowedIPs = []) {
 }
 
 // Helper: Log security events
-function logSecurityEvent(event, details = {}) {
-  const timestamp = new Date().toISOString();
-  console.log(`[SECURITY] ${timestamp} - ${event}:`, details);
-  
-  // Trong production, gửi log này đến service monitoring
-  // như ELK Stack, Datadog, etc.
+async function logSecurityEvent(event, details = {}, req) {
+  try {
+    const entry = {
+      userId: req?.user?.id || null,
+      action: event,
+      details,
+      ipAddress: req?.ip || req?.connection?.remoteAddress || null,
+      userAgent: req?.get ? (req.get("User-Agent") || "Unknown") : undefined,
+      severity: details?.severity || "LOW",
+      status: details?.status || "SUCCESS",
+      apiEndpoint: req?.originalUrl,
+      httpMethod: req?.method
+    };
+    await AuditLog.createLog(entry);
+  } catch (e) {
+    const timestamp = new Date().toISOString();
+    console.log(`[SECURITY] ${timestamp} - ${event}:`, details);
+  }
 }
 
 export {

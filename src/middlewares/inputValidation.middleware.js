@@ -37,9 +37,6 @@ const sanitizeInput = (input) => {
     ALLOWED_ATTR: []
   });
   
-  // Escape special characters
-  sanitized = validator.escape(sanitized);
-  
   // Trim whitespace
   sanitized = sanitized.trim();
   

@@ -1,5 +1,6 @@
 import helmet from 'helmet';
 import cors from 'cors';
+import { logSecurityEvent } from '../utils/utility.function.js';
 
 // CORS configuration
 const corsOptions = {
@@ -111,4 +112,43 @@ export {
   customSecurityHeaders,
   rateLimitHeaders,
   securityMiddleware
+};
+
+const cookieSecurityMiddleware = (req, res, next) => {
+  const originalCookie = res.cookie;
+  res.cookie = function(name, value, options = {}) {
+    const secureOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      ...options
+    };
+    if (name.includes('token') || name.includes('session') || name.includes('auth')) {
+      logSecurityEvent('SECURITY_COOKIE_SET', {
+        cookieName: name,
+        secure: secureOptions.secure,
+        httpOnly: secureOptions.httpOnly,
+        sameSite: secureOptions.sameSite
+      }, req);
+    }
+    return originalCookie.call(this, name, value, secureOptions);
+  };
+  next();
+};
+
+const clearInsecureCookies = (req, res, next) => {
+  if (req.cookies && typeof req.cookies === 'object') {
+    const cookiesToCheck = ['connect.sid', 'sessionId', 'token', 'auth'];
+    cookiesToCheck.forEach(cookieName => {
+      if (req.cookies[cookieName]) {
+        res.clearCookie(cookieName);
+      }
+    });
+  }
+  next();
+};
+
+export {
+  cookieSecurityMiddleware,
+  clearInsecureCookies
 };

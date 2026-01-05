@@ -16,12 +16,12 @@ export const generalRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    logSecurityEvent(req, 'RATE_LIMIT_EXCEEDED', {
+    logSecurityEvent('RATE_LIMIT_EXCEEDED', {
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       endpoint: req.originalUrl,
       limit: 'general'
-    });
+    }, req);
     
     res.status(429).json({
       error: 'Too many requests from this IP, please try again later.',
@@ -42,12 +42,12 @@ export const authRateLimit = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Don't count successful requests
   handler: (req, res) => {
-    logSecurityEvent(req, 'AUTH_RATE_LIMIT_EXCEEDED', {
+    logSecurityEvent('AUTH_RATE_LIMIT_EXCEEDED', {
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       endpoint: req.originalUrl,
       limit: 'authentication'
-    });
+    }, req);
     
     res.status(429).json({
       error: 'Too many authentication attempts, please try again later.',
@@ -67,12 +67,12 @@ export const passwordResetRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    logSecurityEvent(req, 'PASSWORD_RESET_RATE_LIMIT_EXCEEDED', {
+    logSecurityEvent('PASSWORD_RESET_RATE_LIMIT_EXCEEDED', {
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       endpoint: req.originalUrl,
       limit: 'password_reset'
-    });
+    }, req);
     
     res.status(429).json({
       error: 'Too many password reset attempts, please try again later.',
@@ -92,12 +92,12 @@ export const uploadRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    logSecurityEvent(req, 'UPLOAD_RATE_LIMIT_EXCEEDED', {
+    logSecurityEvent('UPLOAD_RATE_LIMIT_EXCEEDED', {
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       endpoint: req.originalUrl,
       limit: 'file_upload'
-    });
+    }, req);
     
     res.status(429).json({
       error: 'Too many file uploads, please try again later.',
@@ -121,13 +121,13 @@ export const apiKeyRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    logSecurityEvent(req, 'API_KEY_RATE_LIMIT_EXCEEDED', {
+    logSecurityEvent('API_KEY_RATE_LIMIT_EXCEEDED', {
       userId: req.user?.id,
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       endpoint: req.originalUrl,
       limit: 'api_key'
-    });
+    }, req);
     
     res.status(429).json({
       error: 'API rate limit exceeded for your account.',
@@ -167,13 +167,13 @@ export const adaptiveRateLimit = (req, res, next) => {
     const dynamicLimit = Math.floor(baseLimit * (1 - reductionFactor));
     
     if (attempts.count >= dynamicLimit) {
-      logSecurityEvent(req, 'ADAPTIVE_RATE_LIMIT_EXCEEDED', {
+      logSecurityEvent('ADAPTIVE_RATE_LIMIT_EXCEEDED', {
         ip: req.ip,
         userAgent: req.get('User-Agent'),
         endpoint: req.originalUrl,
         failedAttempts: attempts.count,
         dynamicLimit
-      });
+      }, req);
       
       return res.status(429).json({
         error: 'Rate limit exceeded due to suspicious activity.',
@@ -230,12 +230,12 @@ export const ddosProtection = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    logSecurityEvent(req, 'DDOS_PROTECTION_TRIGGERED', {
+    logSecurityEvent('DDOS_PROTECTION_TRIGGERED', {
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       endpoint: req.originalUrl,
       severity: 'HIGH'
-    });
+    }, req);
     
     res.status(429).json({
       error: 'Potential DDoS attack detected. Access temporarily blocked.',
@@ -255,11 +255,11 @@ export const burstProtection = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    logSecurityEvent(req, 'BURST_PROTECTION_TRIGGERED', {
+    logSecurityEvent('BURST_PROTECTION_TRIGGERED', {
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       endpoint: req.originalUrl
-    });
+    }, req);
     
     res.status(429).json({
       error: 'Request burst detected. Please slow down.',

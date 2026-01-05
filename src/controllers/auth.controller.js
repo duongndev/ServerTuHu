@@ -13,10 +13,7 @@ import OTPModel from "../models/otp.model.js";
 import { sendOTPEmail } from "../service/email.service.js";
 import { standardResponse } from "../middlewares/middleware.js";
 import AuditLog from "../models/auditLog.model.js";
-import {
-  createSecureSession,
-  destroySecureSession,
-} from "../middlewares/sessionSecurity.middleware.js";
+// Session removed: use pure JWT only
 
 // Đăng nhập
 const login = async (req, res) => {
@@ -153,18 +150,14 @@ const login = async (req, res) => {
 
     // Generate tokens
     const accessToken = await newToken(user);
-    const refreshToken = await newRefreshToken(user);
+    const nextRefreshToken = await newRefreshToken(user);
 
     // Save refresh token to user
-    user.refreshToken = refreshToken;
+    user.refreshToken = nextRefreshToken;
     await user.save();
 
-    // Create secure session
-    const sessionId = await createSecureSession(req, user);
-
     // Set secure cookies
-
-    res.cookie("refreshToken", refreshToken, {
+    res.cookie("refreshToken", nextRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
@@ -175,7 +168,7 @@ const login = async (req, res) => {
     await AuditLog.createLog({
       userId: user._id,
       action: "LOGIN_SUCCESS",
-      details: { email, sessionId },
+      details: { email },
       ipAddress,
       userAgent,
       severity: "LOW",
@@ -187,7 +180,7 @@ const login = async (req, res) => {
       message: "Login successful",
       data: {
         accessToken,
-        refreshToken,
+        refreshToken: nextRefreshToken,
         user: {
           _id: user._id,
           fullName: user.fullName,
@@ -239,8 +232,24 @@ const register = async (req, res) => {
       });
     }
 
-    const newUser = new userModel({ fullName, email, password });
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+    const newUser = new userModel({ fullName, email, password: hashedPassword });
     await newUser.save();
+    
+    // Log registration
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get("User-Agent") || "Unknown";
+    await AuditLog.createLog({
+        userId: newUser._id,
+        action: "REGISTER",
+        details: { email },
+        ipAddress,
+        userAgent,
+        severity: "LOW",
+        status: "SUCCESS",
+    });
+
     return standardResponse(res, 201, {
       success: true,
       message: "Registration successful",
@@ -261,22 +270,28 @@ const register = async (req, res) => {
 // Đăng xuất
 const logout = async (req, res) => {
   try {
-    const userId = req.user?.id;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get("User-Agent") || "Unknown";
-    const sessionId = req.sessionID;
+    
+    // Cookie options must match those used when setting the cookie to ensure deletion
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/" // Ensure path matches default
+    };
 
-    // Clear refresh token from database
-    if (userId) {
-      await userModel.findByIdAndUpdate(userId, {
+    // 1. Invalidate session in database if user is authenticated
+    if (req.user && req.user.id) {
+      await userModel.findByIdAndUpdate(req.user.id, {
         $unset: { refreshToken: 1 },
       });
 
       // Log logout
       await AuditLog.createLog({
-        userId,
+        userId: req.user.id,
         action: "LOGOUT",
-        details: { method: "manual", sessionId },
+        details: { method: "manual" },
         ipAddress,
         userAgent,
         severity: "LOW",
@@ -284,14 +299,10 @@ const logout = async (req, res) => {
       });
     }
 
-    // Destroy secure session
-    await destroySecureSession(req);
-
-    // Clear cookies
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
-    res.clearCookie("token"); // Legacy support
-    res.clearCookie("sessionId"); // Clear session cookie
+    // 2. Clear all auth cookies
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
+    res.clearCookie("token", cookieOptions); // Legacy support
 
     return standardResponse(res, 200, {
       success: true,
@@ -390,18 +401,19 @@ const forgotPassword = async (req, res) => {
 // Xác thực OTP
 const verifyOTP = async (req, res) => {
   try {
-    const { otp } = req.body;
-    if (!otp) {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
       return standardResponse(res, 400, {
         success: false,
-        message: "Vui lòng nhập mã OTP",
+        message: "Vui lòng nhập email và mã OTP",
       });
     }
-    const otpDoc = await OTPModel.findOne({ otp });
+    // Find OTP by email AND code to ensure ownership
+    const otpDoc = await OTPModel.findOne({ email, otp });
     if (!otpDoc) {
       return standardResponse(res, 400, {
         success: false,
-        message: "Mã OTP không đúng",
+        message: "Mã OTP không đúng hoặc email không khớp",
       });
     }
     if (otpDoc.expiresAt < new Date()) {
@@ -411,8 +423,8 @@ const verifyOTP = async (req, res) => {
         message: "Mã OTP đã hết hạn",
       });
     }
-    // Xác thực thành công, xóa OTP
-    await OTPModel.deleteOne({ _id: otpDoc._id });
+    // Xác thực thành công
+    // KHÔNG xóa OTP ở đây, để dành cho bước resetPassword
     return standardResponse(res, 200, {
       success: true,
       message: "Xác thực OTP thành công",
@@ -426,9 +438,100 @@ const verifyOTP = async (req, res) => {
   }
 };
 
+// Đặt lại mật khẩu mới (Sau khi verify OTP)
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword, confirmPassword } = req.body;
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get("User-Agent") || "Unknown";
+
+    if (!email || !otp || !newPassword || !confirmPassword) {
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Vui lòng nhập đầy đủ thông tin",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Mật khẩu xác nhận không khớp",
+      });
+    }
+
+    // 1. Verify OTP again
+    const otpDoc = await OTPModel.findOne({ email, otp });
+    if (!otpDoc) {
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Mã OTP không đúng hoặc email không khớp",
+      });
+    }
+
+    if (otpDoc.expiresAt < new Date()) {
+      await OTPModel.deleteOne({ _id: otpDoc._id });
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Mã OTP đã hết hạn",
+      });
+    }
+
+    // 2. Validate password strength
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      return standardResponse(res, 400, {
+        success: false,
+        message: "Mật khẩu không đủ mạnh",
+        errors: passwordValidation.errors,
+      });
+    }
+
+    // 3. Find User
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      return standardResponse(res, 404, {
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
+    }
+
+    // 4. Update Password & Clear Sessions
+    const hashedNewPassword = await hashPassword(newPassword);
+    user.password = hashedNewPassword;
+    user.refreshToken = null; // Force logout all devices
+    await user.save();
+
+    // 5. Delete OTP
+    await OTPModel.deleteOne({ _id: otpDoc._id });
+
+    // 6. Log Event
+    await AuditLog.createLog({
+      userId: user._id,
+      action: "PASSWORD_RESET",
+      details: { method: "otp" },
+      ipAddress,
+      userAgent,
+      severity: "HIGH",
+      status: "SUCCESS",
+    });
+
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.",
+    });
+
+  } catch (error) {
+    await logSecurityEvent("PASSWORD_RESET_ERROR", { error: error.message }, req);
+    return standardResponse(res, 500, {
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const getProfile = async (req, res) => {
   try {
-    const user = await userModel.findById(req.user.id).select("-password");
+    const user = await userModel.findById(req.user.id).select("-password -refreshToken -loginAttempts -isBlocked -isLocked");
     if (!user) {
       return standardResponse(res, 404, {
         success: false,
@@ -446,82 +549,111 @@ const getProfile = async (req, res) => {
 
 // Refresh Token
 const refreshToken = async (req, res) => {
-  try {
-    const { refreshToken: token } = req.cookies;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get("User-Agent") || "Unknown";
+  const ipAddress = req.ip || req.connection.remoteAddress;
+  const userAgent = req.get("User-Agent") || "Unknown";
 
-    if (!token) {
+  try {
+    // Ưu tiên lấy token từ Cookie (Web), nếu không có thì lấy từ Body (Mobile/App)
+    let incomingToken = req.cookies.refreshToken;
+    if (!incomingToken && req.body.refreshToken) {
+      incomingToken = req.body.refreshToken;
+    }
+
+    if (!incomingToken) {
       return standardResponse(res, 401, {
         success: false,
         message: "Refresh token not provided",
       });
     }
 
-    // Verify refresh token
-    const decoded = await verifyRefreshToken(token);
-    if (!decoded) {
-      await AuditLog.createLog({
-        action: "TOKEN_REFRESH",
-        details: { reason: "Invalid refresh token" },
-        ipAddress,
-        userAgent,
-        severity: "MEDIUM",
-        status: "FAILED",
-      });
-
-      return standardResponse(res, 401, {
+    // 1. Verify token signature
+    let decoded;
+    try {
+      decoded = await verifyRefreshToken(incomingToken);
+    } catch (err) {
+      // Token expired or invalid signature -> Clear cookies if exists
+      res.clearCookie("accessToken");
+      res.clearCookie("refreshToken");
+      return standardResponse(res, 403, {
         success: false,
-        message: "Invalid refresh token",
+        message: "Invalid or expired refresh token",
       });
     }
 
-    // Find user and verify refresh token matches
+    // 2. Find user
     const user = await userModel.findById(decoded.id);
-    if (!user || user.refreshToken !== token) {
-      await AuditLog.createLog({
-        userId: decoded.id,
-        action: "TOKEN_REFRESH",
-        details: { reason: "Token mismatch or user not found" },
-        ipAddress,
-        userAgent,
-        severity: "HIGH",
-        status: "FAILED",
-      });
-
+    if (!user) {
+      res.clearCookie("accessToken");
+      res.clearCookie("refreshToken");
       return standardResponse(res, 401, {
         success: false,
-        message: "Invalid refresh token",
+        message: "User not found",
       });
     }
 
-    // Check if user is blocked
-    if (user.isBlocked) {
+    // 3. Security Check: Token Reuse Detection & Session Validation
+    
+    // Case A: User logged out (refreshToken in DB is null)
+    if (!user.refreshToken) {
+      res.clearCookie("accessToken");
+      res.clearCookie("refreshToken");
+      return standardResponse(res, 403, {
+        success: false,
+        message: "Session expired. Please log in again.",
+      });
+    }
+
+    // Case B: Token Mismatch (Token Reuse - Possible Theft)
+    if (user.refreshToken !== incomingToken) {
+      console.warn(`[SECURITY] Token reuse detected for user ${user._id}`);
+      
+      // Invalidate the user's refresh token immediately (force logout on all devices)
+      user.refreshToken = null; 
+      await user.save();
+
+      // Log critical security event
       await AuditLog.createLog({
         userId: user._id,
-        action: "TOKEN_REFRESH",
-        details: { reason: "User blocked" },
+        action: "TOKEN_REUSE_DETECTED",
+        details: { 
+          reason: "Old refresh token reused - Possible token theft",
+          tokenEnding: incomingToken.slice(-6) 
+        },
         ipAddress,
         userAgent,
-        severity: "HIGH",
+        severity: "CRITICAL",
         status: "BLOCKED",
       });
 
+      // Clear cookies
+      res.clearCookie("accessToken");
+      res.clearCookie("refreshToken");
+
+      return standardResponse(res, 403, {
+        success: false,
+        message: "Security alert: Token reuse detected. Please sign in again.",
+      });
+    }
+
+    // 4. Check block status
+    if (user.isBlocked) {
+      res.clearCookie("accessToken");
+      res.clearCookie("refreshToken");
       return standardResponse(res, 403, {
         success: false,
         message: "Account has been blocked",
       });
     }
 
-    // Generate new tokens
+    // 5. Token Rotation
     const newAccessToken = await newToken(user);
-    const newRefreshToken = await newRefreshToken(user);
+    const nextRefreshToken = await newRefreshToken(user);
 
     // Update refresh token in database
-    user.refreshToken = newRefreshToken;
+    user.refreshToken = nextRefreshToken;
     await user.save();
 
-    // Set new cookies
+    // 6. Set new cookies (For Web Client)
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -529,33 +661,25 @@ const refreshToken = async (req, res) => {
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
-    res.cookie("refreshToken", newRefreshToken, {
+    res.cookie("refreshToken", nextRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    // Log successful token refresh
-    await AuditLog.createLog({
-      userId: user._id,
-      action: "TOKEN_REFRESH",
-      details: { success: true },
-      ipAddress,
-      userAgent,
-      severity: "LOW",
-      status: "SUCCESS",
-    });
-
+    // Return tokens in JSON as well (For Mobile Client)
     return standardResponse(res, 200, {
       success: true,
       message: "Token refreshed successfully",
       data: {
         accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
+        refreshToken: nextRefreshToken,
       },
     });
+
   } catch (error) {
+    console.error("RefreshToken Error:", error);
     await logSecurityEvent(
       "TOKEN_REFRESH_ERROR",
       { error: error.message },
@@ -644,20 +768,22 @@ const changePassword = async (req, res) => {
     await AuditLog.createLog({
       userId,
       action: "PASSWORD_CHANGE",
-      details: { success: true, sessionId: req.sessionID },
+      details: { success: true },
       ipAddress,
       userAgent,
       severity: "MEDIUM",
       status: "SUCCESS",
     });
 
-    // Destroy secure session
-    await destroySecureSession(req);
-
     // Clear cookies to force re-login
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
-    res.clearCookie("sessionId");
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/"
+    };
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
 
     return standardResponse(res, 200, {
       success: true,
@@ -686,5 +812,6 @@ export {
   updateFCMToken,
   forgotPassword,
   verifyOTP,
+  resetPassword,
   getProfile,
 };
