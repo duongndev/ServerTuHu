@@ -552,10 +552,18 @@ const refreshToken = async (req, res) => {
   const ipAddress = req.ip || req.connection.remoteAddress;
   const userAgent = req.get("User-Agent") || "Unknown";
 
+  // Cookie options used when clearing cookies
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+  };
+
   try {
-    // Ưu tiên lấy token từ Cookie (Web), nếu không có thì lấy từ Body (Mobile/App)
-    let incomingToken = req.cookies.refreshToken;
-    if (!incomingToken && req.body.refreshToken) {
+    // Prefer cookie (web) but accept body payload (mobile/apps)
+    let incomingToken = req.cookies && req.cookies.refreshToken;
+    if (!incomingToken && req.body && req.body.refreshToken) {
       incomingToken = req.body.refreshToken;
     }
 
@@ -566,58 +574,62 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // 1. Verify token signature
+    // Verify signature and get payload; verifyRefreshToken should throw on invalid/expired
     let decoded;
     try {
       decoded = await verifyRefreshToken(incomingToken);
     } catch (err) {
-      // Token expired or invalid signature -> Clear cookies if exists
-      res.clearCookie("accessToken");
-      res.clearCookie("refreshToken");
+      res.clearCookie("accessToken", cookieOptions);
+      res.clearCookie("refreshToken", cookieOptions);
+      await logSecurityEvent("TOKEN_REFRESH_INVALID", { reason: err.message }, req);
       return standardResponse(res, 403, {
         success: false,
         message: "Invalid or expired refresh token",
       });
     }
 
-    // 2. Find user
+    // Load user
     const user = await userModel.findById(decoded.id);
     if (!user) {
-      res.clearCookie("accessToken");
-      res.clearCookie("refreshToken");
+      res.clearCookie("accessToken", cookieOptions);
+      res.clearCookie("refreshToken", cookieOptions);
       return standardResponse(res, 401, {
         success: false,
         message: "User not found",
       });
     }
 
-    // 3. Security Check: Token Reuse Detection & Session Validation
-    
-    // Case A: User logged out (refreshToken in DB is null)
+    // If user has no stored refresh token -> session already invalidated
     if (!user.refreshToken) {
-      res.clearCookie("accessToken");
-      res.clearCookie("refreshToken");
+      res.clearCookie("accessToken", cookieOptions);
+      res.clearCookie("refreshToken", cookieOptions);
+      await AuditLog.createLog({
+        userId: user._id,
+        action: "REFRESH_ATTEMPT_NO_SESSION",
+        details: { reason: "No refresh token stored" },
+        ipAddress,
+        userAgent,
+        severity: "MEDIUM",
+        status: "FAILED",
+      });
       return standardResponse(res, 403, {
         success: false,
         message: "Session expired. Please log in again.",
       });
     }
 
-    // Case B: Token Mismatch (Token Reuse - Possible Theft)
+    // Token reuse detection: incoming token must match stored token
     if (user.refreshToken !== incomingToken) {
-      console.warn(`[SECURITY] Token reuse detected for user ${user._id}`);
-      
-      // Invalidate the user's refresh token immediately (force logout on all devices)
-      user.refreshToken = null; 
+      // Possible token theft - revoke stored token and record audit
+      user.refreshToken = null;
       await user.save();
 
-      // Log critical security event
       await AuditLog.createLog({
         userId: user._id,
         action: "TOKEN_REUSE_DETECTED",
-        details: { 
-          reason: "Old refresh token reused - Possible token theft",
-          tokenEnding: incomingToken.slice(-6) 
+        details: {
+          reason: "Stored refresh token mismatch - possible reuse",
+          tokenEnding: String(incomingToken).slice(-6),
         },
         ipAddress,
         userAgent,
@@ -625,9 +637,8 @@ const refreshToken = async (req, res) => {
         status: "BLOCKED",
       });
 
-      // Clear cookies
-      res.clearCookie("accessToken");
-      res.clearCookie("refreshToken");
+      res.clearCookie("accessToken", cookieOptions);
+      res.clearCookie("refreshToken", cookieOptions);
 
       return standardResponse(res, 403, {
         success: false,
@@ -635,57 +646,58 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // 4. Check block status
-    if (user.isBlocked) {
-      res.clearCookie("accessToken");
-      res.clearCookie("refreshToken");
+    // Blocked or locked accounts cannot refresh
+    if (user.isBlocked || user.isLocked) {
+      res.clearCookie("accessToken", cookieOptions);
+      res.clearCookie("refreshToken", cookieOptions);
       return standardResponse(res, 403, {
         success: false,
-        message: "Account has been blocked",
+        message: "Account not allowed to refresh tokens",
       });
     }
 
-    // 5. Token Rotation
+    // Rotate tokens: issue new refresh token and access token
     const newAccessToken = await newToken(user);
     const nextRefreshToken = await newRefreshToken(user);
 
-    // Update refresh token in database
     user.refreshToken = nextRefreshToken;
     await user.save();
 
-    // 6. Set new cookies (For Web Client)
+    // Set cookies for web clients
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: 15 * 60 * 1000,
     });
 
     res.cookie("refreshToken", nextRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // Return tokens in JSON as well (For Mobile Client)
+    // Audit successful rotation
+    await AuditLog.createLog({
+      userId: user._id,
+      action: "TOKEN_REFRESH",
+      details: { ipAddress, userAgent },
+      ipAddress,
+      userAgent,
+      severity: "LOW",
+      status: "SUCCESS",
+    });
+
+    // Return tokens also for mobile/SPA clients
     return standardResponse(res, 200, {
       success: true,
       message: "Token refreshed successfully",
-      data: {
-        accessToken: newAccessToken,
-        refreshToken: nextRefreshToken,
-      },
+      data: { accessToken: newAccessToken, refreshToken: nextRefreshToken },
     });
-
   } catch (error) {
-    console.error("RefreshToken Error:", error);
-    await logSecurityEvent(
-      "TOKEN_REFRESH_ERROR",
-      { error: error.message },
-      req
-    );
-
+    console.error("refreshToken error:", error);
+    await logSecurityEvent("TOKEN_REFRESH_ERROR", { error: error.message }, req);
     return standardResponse(res, 500, {
       success: false,
       message: "Internal server error",
