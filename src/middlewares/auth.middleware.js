@@ -1,9 +1,9 @@
+import BlacklistedToken from "../models/blacklistedToken.model.js";
 import { verifyToken, verifyRefreshToken } from "../utils/utility.function.js";
 import User from "../models/user.model.js";
 import { errorResponse } from "./middleware.js";
 
-// Blacklist để lưu token bị thu hồi (trong production nên dùng Redis)
-const tokenBlacklist = new Set();
+// Blacklist token handling
 
 const protect = async (req, res, next) => {
   let token;
@@ -16,13 +16,17 @@ const protect = async (req, res, next) => {
     try {
       token = req.headers.authorization.split(" ")[1];
       
-      // Kiểm tra token có trong blacklist không
-      if (tokenBlacklist.has(token)) {
+      // Kiểm tra token có trong blacklist database không
+      const isBlacklisted = await BlacklistedToken.exists({ token });
+      if (isBlacklisted) {
         return errorResponse(res, "Token đã bị thu hồi", 401);
       }
       
       const decoded = await verifyToken(token);
       req.user = await User.findById(decoded.id).select("-password");
+      
+      // Lưu payload để dùng cho logout (cần exp time)
+      req.userPayload = decoded;
       
       if (!req.user) {
         return errorResponse(res, "Không tìm thấy người dùng", 401);
@@ -59,9 +63,23 @@ const authorize = (...roles) => {
 };
 
 // Middleware để logout và blacklist token
-const logout = (req, res, next) => {
-  if (req.token) {
-    tokenBlacklist.add(req.token);
+const blacklistToken = async (req, res, next) => {
+  if (req.token && req.userPayload) {
+    try {
+      // Tính thời gian hết hạn của token
+      // decoded.exp là giây, cần chuyển sang miliseconds
+      const expiresAt = new Date(req.userPayload.exp * 1000);
+      
+      await BlacklistedToken.create({
+        token: req.token,
+        expiresAt: expiresAt,
+        reason: "User logged out"
+      });
+    } catch (error) {
+       console.error("Blacklist token fail:", error);
+       // Không chặn flow logout nếu lỗi db, nhưng nên log lại
+      return errorResponse(res, "Lỗi khi blacklist token", 500);
+    }
   }
   next();
 };
@@ -153,9 +171,8 @@ const userRateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
 export {
   protect,
   authorize,
-  logout,
+  blacklistToken,
   refreshToken,
   checkOwnership,
-  userRateLimit,
-  tokenBlacklist
+  userRateLimit
 };

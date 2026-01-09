@@ -13,6 +13,7 @@ const AuditLogSchema = new mongoose.Schema(
       enum: [
         'LOGIN_SUCCESS',
         'LOGIN_FAILED',
+        'REGISTER',
         'LOGOUT',
         'PASSWORD_CHANGE',
         'PASSWORD_RESET',

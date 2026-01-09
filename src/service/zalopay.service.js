@@ -5,7 +5,7 @@ import { zalopayConfig } from "../config/zalopay.config.js";
 const ZaloPayService = {
   createPaymentRequest: async (order) => {
     const embed_data = {
-      redirecturl: order.redirect_url || "http://localhost:3000/order-success", // Đường dẫn trả về sau khi thanh toán trên app/web
+      redirecturl: order.redirect_url || "http://localhost:5000/order-success", // Đường dẫn trả về sau khi thanh toán trên app/web
     };
 
     const items = order.items.map((item) => ({
@@ -30,7 +30,7 @@ const ZaloPayService = {
       app_trans_id: app_trans_id,
       embed_data: JSON.stringify(embed_data),
       item: JSON.stringify(items),
-      description: `Thanh toan don hang #${order._id} - TuHuBread`,
+      description: `Thanh toán đơn hàng #${order._id} - TuHuBread`,
       bank_code: "",
       callback_url: zalopayConfig.callback_url
     };

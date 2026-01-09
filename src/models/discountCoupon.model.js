@@ -13,11 +13,13 @@ const DiscountCouponSchema = new mongoose.Schema(
       type: String,
       enum: ["percentage", "fixed_amount"],
       required: true,
-      // Loại giảm giá: "percentage" (giảm theo phần trăm) hoặc "fixed_amount" (giảm số tiền cố định)
+      default: "percentage",
+      // Loại giảm giá: "percentage" (giảm theo phần trăm) hoặc "fixed_amount" (giảm số tiền cố định) mặc định là "percentage"
     },
     discountValue: {
       type: Number,
       required: true,
+      default: 0,
       min: 0,
       // Giá trị giảm giá. Nếu discountType là "percentage", đây là phần trăm (ví dụ: 10 cho 10%).
       // Nếu discountType là "fixed_amount", đây là số tiền giảm cố định (ví dụ: 50000 cho 50.000 VND).
@@ -30,10 +32,8 @@ const DiscountCouponSchema = new mongoose.Schema(
     },
     usageLimit: {
       type: Number,
-      default: null, // null means no limit
       min: 1,
       // Tổng số lần mã giảm giá này có thể được sử dụng trên tất cả các đơn hàng.
-      // Nếu là null, không có giới hạn về số lần sử dụng.
     },
     usedCount: {
       type: Number,

@@ -1,4 +1,5 @@
 import userModel from "../models/user.model.js";
+import crypto from "crypto";
 import {
   hashPassword,
   comparePassword,
@@ -377,8 +378,8 @@ const forgotPassword = async (req, res) => {
         message: "User not found with this email",
       });
     }
-    // Sinh OTP 6 số
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Sinh OTP 6 số an toàn
+    const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 phút
     // Xóa OTP cũ nếu có
     await OTPModel.deleteMany({ email });

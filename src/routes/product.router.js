@@ -33,8 +33,8 @@ router.get('/sale', burstProtection, getProductsSale);
 router.get('/new', burstProtection, getProductsNew);
 router.get('/category/:id', burstProtection, paramValidationRules.mongoId, queryValidationRules.pagination, handleValidationErrors, getProductByCategoryId);
 // Đảm bảo thứ tự: protect -> authorize -> rate limit -> upload -> validation -> controller
-router.post('/create', protect, authorize('admin'), uploadRateLimit, burstProtection, productValidationRules.create, handleValidationErrors, secureUpload.single("file"), validateUploadedFile, createProduct);
-router.put('/update/:id', protect, authorize('admin'), uploadRateLimit, burstProtection, productValidationRules.update, handleValidationErrors, secureUpload.single("file"), validateUploadedFile, updateProduct);
+router.post('/create', protect, authorize('admin'), uploadRateLimit, burstProtection, secureUpload.single("file"), validateUploadedFile, productValidationRules.create, handleValidationErrors, createProduct);
+router.put('/update/:id', protect, authorize('admin'), uploadRateLimit, burstProtection, secureUpload.single("file"), validateUploadedFile, productValidationRules.update, handleValidationErrors, updateProduct);
 router.delete('/delete/:id', protect, authorize('admin'), burstProtection, paramValidationRules.mongoId, handleValidationErrors, deleteProduct);
 
 // Rating endpoints

@@ -86,17 +86,6 @@ const UserSchema = new mongoose.Schema(
 
 UserSchema.pre("save", async function (next) {
   this.updatedAt = Date.now();
-  
-  // Hash password if it's modified
-  if (this.isModified('password')) {
-    try {
-      const saltRounds = 10;
-      this.password = await bcrypt.hash(this.password, saltRounds);
-    } catch (error) {
-      return next(error);
-    }
-  }
-  
   next();
 });
 
