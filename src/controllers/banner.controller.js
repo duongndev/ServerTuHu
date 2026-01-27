@@ -1,12 +1,10 @@
 import bannerModel from "../models/banner.model.js";
 import { standardResponse } from "../middlewares/middleware.js";
-import cloudinary from "../config/cloudinary.config.js";
-import fs from "fs/promises";
+import { uploadImage } from "../service/upload.service.js"; // Use service
 
 const createBanner = async (req, res) => {
   try {
     const imgUrls = [];
-
 
     // Kiểm tra xem có tệp nào được tải lên không
     if (!req.files || req.files.length === 0) {
@@ -16,16 +14,26 @@ const createBanner = async (req, res) => {
       });
     }
 
-
+    // Loop through files and upload using service
+    // Note: uploadImage handles cleanup automatically
     for (const file of req.files) {
-      const result = await cloudinary.uploader.upload(file.path, {
-        folder: "TuHuBread/banners",
-        use_filename: true,
-        unique_filename: true,
-      });
-      imgUrls.push(result.secure_url);
-      await fs.unlink(file.path);
+      try {
+        const secureUrl = await uploadImage(file.path, "TuHuBread/banners");
+        imgUrls.push(secureUrl);
+      } catch (uploadError) {
+        console.error(`Failed to upload file ${file.originalname}:`, uploadError);
+        // Continue with other files or abort? Usually better to try all or abort all.
+        // Current logic pushes success ones.
+      }
     }
+    
+    if (imgUrls.length === 0) {
+        return standardResponse(res, 500, {
+            success: false,
+            message: "Failed to upload any images",
+        });
+    }
+
     const banner = new bannerModel({
       imgUrls,
     });

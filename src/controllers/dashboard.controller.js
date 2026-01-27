@@ -12,69 +12,83 @@ import {
 // Lấy thống kê tổng quan
 const getOverviewStats = async (req, res) => {
   try {
-    // Thống kê tổng số
-    const totalUsers = await User.countDocuments({ role: "user" });
-    const totalProducts = await Product.countDocuments();
-    const totalOrders = await Order.countDocuments();
-    const totalCategories = await Category.countDocuments();
-    const totalReviews = await Review.countDocuments();
-    const totalCoupons = await DiscountCoupon.countDocuments();
-
-    // Thống kê đơn hàng theo trạng thái
-    const orderStats = await Order.aggregate([
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-          totalValue: { $sum: "$totalPrice" },
-        },
-      },
-    ]);
-
-    // Tổng doanh thu
-    const totalRevenue = await Order.aggregate([
-      {
-        $match: { status: "delivered" },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$totalPrice" },
-        },
-      },
-    ]);
-
-    // Đơn hàng hôm nay
+    // Chuẩn bị thời gian cho thống kê hôm nay
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const todayOrders = await Order.countDocuments({
-      createdAt: { $gte: today, $lt: tomorrow },
-    });
+    // Chạy các query song song để tối ưu hiệu suất
+    const [
+      totalUsers,
+      totalProducts,
+      totalOrders,
+      totalCategories,
+      totalReviews,
+      totalCoupons,
+      orderStats,
+      totalRevenueResult,
+      todayOrders,
+      todayRevenueResult,
+      newUsersToday
+    ] = await Promise.all([
+      // Tổng số lượng
+      User.countDocuments({ role: "user" }),
+      Product.countDocuments(),
+      Order.countDocuments(),
+      Category.countDocuments(),
+      Review.countDocuments(),
+      DiscountCoupon.countDocuments(),
+      
+      // Thống kê đơn hàng theo trạng thái
+      Order.aggregate([
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+            totalValue: { $sum: "$totalPrice" },
+          },
+        },
+      ]),
 
-    // Doanh thu hôm nay
-    const todayRevenue = await Order.aggregate([
-      {
-        $match: {
-          status: "delivered",
-          createdAt: { $gte: today, $lt: tomorrow },
+      // Tổng doanh thu (chỉ tính đơn đã giao)
+      Order.aggregate([
+        { $match: { status: "delivered" } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$totalPrice" },
+          },
         },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$totalPrice" },
+      ]),
+
+      // Đơn hàng hôm nay
+      Order.countDocuments({
+        createdAt: { $gte: today, $lt: tomorrow },
+      }),
+
+      // Doanh thu hôm nay
+      Order.aggregate([
+        {
+          $match: {
+            status: "delivered",
+            createdAt: { $gte: today, $lt: tomorrow },
+          },
         },
-      },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$totalPrice" },
+          },
+        },
+      ]),
+
+      // Người dùng mới hôm nay
+      User.countDocuments({
+        role: "user",
+        createdAt: { $gte: today, $lt: tomorrow },
+      })
     ]);
-
-    // Người dùng mới hôm nay
-    const newUsersToday = await User.countDocuments({
-      role: "user",
-      createdAt: { $gte: today, $lt: tomorrow },
-    });
 
     const stats = {
       overview: {
@@ -84,9 +98,9 @@ const getOverviewStats = async (req, res) => {
         totalCategories,
         totalReviews,
         totalCoupons,
-        totalRevenue: totalRevenue[0]?.total || 0,
+        totalRevenue: totalRevenueResult[0]?.total || 0,
         todayOrders,
-        todayRevenue: todayRevenue[0]?.total || 0,
+        todayRevenue: todayRevenueResult[0]?.total || 0,
         newUsersToday,
       },
       ordersByStatus: orderStats,
@@ -110,7 +124,7 @@ const getRevenueStats = async (req, res) => {
     const targetYear = year ? parseInt(year) : currentYear;
 
     if (period === "year") {
-      // Thống kê theo năm
+      // Thống kê theo năm (từng tháng trong năm)
       matchCondition.createdAt = {
         $gte: new Date(`${targetYear}-01-01`),
         $lt: new Date(`${targetYear + 1}-01-01`),
@@ -121,7 +135,7 @@ const getRevenueStats = async (req, res) => {
         orders: { $sum: 1 },
       };
     } else if (period === "month") {
-      // Thống kê theo tháng
+      // Thống kê theo tháng (từng ngày trong tháng)
       const targetMonth = month ? parseInt(month) : new Date().getMonth() + 1;
       const startDate = new Date(targetYear, targetMonth - 1, 1);
       const endDate = new Date(targetYear, targetMonth, 1);
@@ -227,64 +241,67 @@ const getTopProducts = async (req, res) => {
 // Thống kê người dùng
 const getUserStats = async (req, res) => {
   try {
-    // Thống kê người dùng theo thời gian đăng ký
-    const userRegistrationStats = await User.aggregate([
-      { $match: { role: "user" } },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
+    // Chạy các query song song
+    const [userRegistrationStats, topCustomers, userStatusStats] = await Promise.all([
+      // Thống kê người dùng theo thời gian đăng ký (12 tháng gần nhất)
+      User.aggregate([
+        { $match: { role: "user" } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
           },
-          count: { $sum: 1 },
         },
-      },
-      { $sort: { "_id.year": -1, "_id.month": -1 } },
-      { $limit: 12 },
-    ]);
+        { $sort: { "_id.year": -1, "_id.month": -1 } },
+        { $limit: 12 },
+      ]),
 
-    // Top khách hàng theo tổng giá trị đơn hàng
-    const topCustomers = await Order.aggregate([
-      { $match: { status: "delivered" } },
-      {
-        $group: {
-          _id: "$user_id",
-          totalSpent: { $sum: "$totalPrice" },
-          orderCount: { $sum: 1 },
+      // Top khách hàng theo tổng giá trị đơn hàng
+      Order.aggregate([
+        { $match: { status: "delivered" } },
+        {
+          $group: {
+            _id: "$user_id",
+            totalSpent: { $sum: "$totalPrice" },
+            orderCount: { $sum: 1 },
+          },
         },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "_id",
-          foreignField: "_id",
-          as: "user",
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "user",
+          },
         },
-      },
-      { $unwind: "$user" },
-      {
-        $project: {
-          _id: 1,
-          name: "$user.name",
-          email: "$user.email",
-          phone: "$user.phone",
-          totalSpent: 1,
-          orderCount: 1,
+        { $unwind: "$user" },
+        {
+          $project: {
+            _id: 1,
+            name: "$user.name",
+            email: "$user.email",
+            phone: "$user.phone",
+            totalSpent: 1,
+            orderCount: 1,
+          },
         },
-      },
-      { $sort: { totalSpent: -1 } },
-      { $limit: 10 },
-    ]);
+        { $sort: { totalSpent: -1 } },
+        { $limit: 10 },
+      ]),
 
-    // Thống kê trạng thái người dùng
-    const userStatusStats = await User.aggregate([
-      { $match: { role: "user" } },
-      {
-        $group: {
-          _id: "$isActive",
-          count: { $sum: 1 },
+      // Thống kê trạng thái người dùng
+      User.aggregate([
+        { $match: { role: "user" } },
+        {
+          $group: {
+            _id: "$isActive",
+            count: { $sum: 1 },
+          },
         },
-      },
+      ])
     ]);
 
     return successResponse(res, "Lấy thống kê người dùng thành công", {
@@ -301,63 +318,65 @@ const getUserStats = async (req, res) => {
 // Thống kê đánh giá sản phẩm
 const getReviewStats = async (req, res) => {
   try {
-    // Thống kê đánh giá theo rating
-    const ratingStats = await Review.aggregate([
-      {
-        $group: {
-          _id: "$rating",
-          count: { $sum: 1 },
+    const [ratingStats, avgRatingResult, topRatedProducts] = await Promise.all([
+      // Thống kê đánh giá theo rating
+      Review.aggregate([
+        {
+          $group: {
+            _id: "$rating",
+            count: { $sum: 1 },
+          },
         },
-      },
-      { $sort: { _id: 1 } },
-    ]);
+        { $sort: { _id: 1 } },
+      ]),
 
-    // Đánh giá trung bình
-    const avgRating = await Review.aggregate([
-      {
-        $group: {
-          _id: null,
-          averageRating: { $avg: "$rating" },
-          totalReviews: { $sum: 1 },
+      // Đánh giá trung bình toàn hệ thống
+      Review.aggregate([
+        {
+          $group: {
+            _id: null,
+            averageRating: { $avg: "$rating" },
+            totalReviews: { $sum: 1 },
+          },
         },
-      },
-    ]);
+      ]),
 
-    // Sản phẩm có đánh giá cao nhất
-    const topRatedProducts = await Review.aggregate([
-      {
-        $group: {
-          _id: "$product_id",
-          averageRating: { $avg: "$rating" },
-          reviewCount: { $sum: 1 },
+      // Sản phẩm có đánh giá cao nhất (ít nhất 3 đánh giá)
+      Review.aggregate([
+        {
+          $group: {
+            _id: "$product_id",
+            averageRating: { $avg: "$rating" },
+            reviewCount: { $sum: 1 },
+          },
         },
-      },
-      { $match: { reviewCount: { $gte: 3 } } }, // Ít nhất 3 đánh giá
-      {
-        $lookup: {
-          from: "products",
-          localField: "_id",
-          foreignField: "_id",
-          as: "product",
+        { $match: { reviewCount: { $gte: 3 } } },
+        {
+          $lookup: {
+            from: "products",
+            localField: "_id",
+            foreignField: "_id",
+            as: "product",
+          },
         },
-      },
-      { $unwind: "$product" },
-      {
-        $project: {
-          _id: 1,
-          name: "$product.name",
-          image: "$product.image",
-          averageRating: 1,
-          reviewCount: 1,
+        { $unwind: "$product" },
+        {
+          $project: {
+            _id: 1,
+            name: "$product.name",
+            image: "$product.image",
+            averageRating: 1,
+            reviewCount: 1,
+          },
         },
-      },
-      { $sort: { averageRating: -1 } },
-      { $limit: 10 },
+        { $sort: { averageRating: -1 } },
+        { $limit: 10 },
+      ])
     ]);
 
     return successResponse(res, "Lấy thống kê đánh giá thành công", {
       ratingDistribution: ratingStats,
-      overall: avgRating[0] || { averageRating: 0, totalReviews: 0 },
+      overall: avgRatingResult[0] || { averageRating: 0, totalReviews: 0 },
       topRatedProducts,
     });
   } catch (error) {
@@ -369,23 +388,25 @@ const getReviewStats = async (req, res) => {
 // Thống kê mã giảm giá
 const getCouponStats = async (req, res) => {
   try {
-    // Thống kê mã giảm giá theo trạng thái
-    const couponStatusStats = await DiscountCoupon.aggregate([
-      {
-        $addFields: {
-          status: {
-            $cond: {
-              if: { $not: "$isActive" },
-              then: "inactive",
-              else: {
-                $cond: {
-                  if: { $lt: ["$expirationDate", new Date()] },
-                  then: "expired",
-                  else: {
-                    $cond: {
-                      if: { $gte: ["$usedCount", "$usageLimit"] },
-                      then: "used_up",
-                      else: "active",
+    const [couponStatusStats, topUsedCoupons, discountTypeStats] = await Promise.all([
+      // Thống kê mã giảm giá theo trạng thái
+      DiscountCoupon.aggregate([
+        {
+          $addFields: {
+            status: {
+              $cond: {
+                if: { $not: "$isActive" },
+                then: "inactive",
+                else: {
+                  $cond: {
+                    if: { $lt: ["$expirationDate", new Date()] },
+                    then: "expired",
+                    else: {
+                      $cond: {
+                        if: { $gte: ["$usedCount", "$usageLimit"] },
+                        then: "used_up",
+                        else: "active",
+                      },
                     },
                   },
                 },
@@ -393,30 +414,30 @@ const getCouponStats = async (req, res) => {
             },
           },
         },
-      },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+          },
         },
-      },
-    ]);
+      ]),
 
-    // Top mã giảm giá được sử dụng nhiều nhất
-    const topUsedCoupons = await DiscountCoupon.find()
-      .sort({ usedCount: -1 })
-      .limit(10)
-      .select("code discountType discountValue usedCount usageLimit");
+      // Top mã giảm giá được sử dụng nhiều nhất
+      DiscountCoupon.find()
+        .sort({ usedCount: -1 })
+        .limit(10)
+        .select("code discountType discountValue usedCount usageLimit"),
 
-    // Thống kê theo loại giảm giá
-    const discountTypeStats = await DiscountCoupon.aggregate([
-      {
-        $group: {
-          _id: "$discountType",
-          count: { $sum: 1 },
-          totalUsed: { $sum: "$usedCount" },
+      // Thống kê theo loại giảm giá
+      DiscountCoupon.aggregate([
+        {
+          $group: {
+            _id: "$discountType",
+            count: { $sum: 1 },
+            totalUsed: { $sum: "$usedCount" },
+          },
         },
-      },
+      ])
     ]);
 
     return successResponse(res, "Lấy thống kê mã giảm giá thành công", {
@@ -433,60 +454,63 @@ const getCouponStats = async (req, res) => {
 // Thống kê theo danh mục sản phẩm
 const getCategoryStats = async (req, res) => {
   try {
-    const categoryStats = await Product.aggregate([
-      {
-        $lookup: {
-          from: "categories",
-          localField: "category",
-          foreignField: "_id",
-          as: "categoryInfo",
-        },
-      },
-      { $unwind: "$categoryInfo" },
-      {
-        $group: {
-          _id: "$category",
-          categoryName: { $first: "$categoryInfo.name" },
-          productCount: { $sum: 1 },
-          avgPrice: { $avg: "$price" },
-        },
-      },
-      { $sort: { productCount: -1 } },
-    ]);
-
-    // Doanh thu theo danh mục
-    const categoryRevenue = await Order.aggregate([
-      { $match: { status: "delivered" } },
-      { $unwind: "$items" },
-      {
-        $lookup: {
-          from: "products",
-          localField: "items.product_id",
-          foreignField: "_id",
-          as: "product",
-        },
-      },
-      { $unwind: "$product" },
-      {
-        $lookup: {
-          from: "categories",
-          localField: "product.category",
-          foreignField: "_id",
-          as: "category",
-        },
-      },
-      { $unwind: "$category" },
-      {
-        $group: {
-          _id: "$product.category",
-          categoryName: { $first: "$category.name" },
-          totalRevenue: {
-            $sum: { $multiply: ["$items.quantity", "$items.price"] },
+    const [categoryStats, categoryRevenue] = await Promise.all([
+      // Thống kê số lượng sản phẩm mỗi danh mục
+      Product.aggregate([
+        {
+          $lookup: {
+            from: "categories",
+            localField: "category",
+            foreignField: "_id",
+            as: "categoryInfo",
           },
-          totalQuantitySold: { $sum: "$items.quantity" },
         },
-      },
-      { $sort: { totalRevenue: -1 } },
+        { $unwind: "$categoryInfo" },
+        {
+          $group: {
+            _id: "$category",
+            categoryName: { $first: "$categoryInfo.name" },
+            productCount: { $sum: 1 },
+            avgPrice: { $avg: "$price" },
+          },
+        },
+        { $sort: { productCount: -1 } },
+      ]),
+
+      // Doanh thu theo danh mục
+      Order.aggregate([
+        { $match: { status: "delivered" } },
+        { $unwind: "$items" },
+        {
+          $lookup: {
+            from: "products",
+            localField: "items.product_id",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        { $unwind: "$product" },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "product.category",
+            foreignField: "_id",
+            as: "category",
+          },
+        },
+        { $unwind: "$category" },
+        {
+          $group: {
+            _id: "$product.category",
+            categoryName: { $first: "$category.name" },
+            totalRevenue: {
+              $sum: { $multiply: ["$items.quantity", "$items.price"] },
+            },
+            totalQuantitySold: { $sum: "$items.quantity" },
+          },
+        },
+        { $sort: { totalRevenue: -1 } },
+      ])
     ]);
 
     return successResponse(res, "Lấy thống kê danh mục thành công", {

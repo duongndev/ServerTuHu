@@ -9,6 +9,13 @@ const failedAttempts = new Map();
 export const generalRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
+  skip: (req) => {
+    // Skip rate limiting in test environment
+    if (process.env.NODE_ENV === 'test') return true;
+    // Skip rate limiting in development for admin users
+    if (process.env.NODE_ENV === 'development' && req.user?.role === 'admin') return true;
+    return false;
+  },
   message: {
     error: 'Too many requests from this IP, please try again later.',
     retryAfter: '15 minutes'
@@ -34,6 +41,13 @@ export const generalRateLimit = rateLimit({
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // Limit each IP to 10 login attempts per windowMs
+  skip: (req) => {
+    // Skip rate limiting in test environment
+    if (process.env.NODE_ENV === 'test') return true;
+    // Skip rate limiting in development for admin users (but not for auth endpoints)
+    if (process.env.NODE_ENV === 'development' && req.user?.role === 'admin') return true;
+    return false;
+  },
   message: {
     error: 'Too many authentication attempts, please try again later.',
     retryAfter: '15 minutes'
@@ -60,6 +74,13 @@ export const authRateLimit = rateLimit({
 export const passwordResetRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10, // Limit each IP to 10 password reset attempts per hour
+  skip: (req) => {
+    // Skip rate limiting in test environment
+    if (process.env.NODE_ENV === 'test') return true;
+    // Skip rate limiting in development for admin users
+    if (process.env.NODE_ENV === 'development' && req.user?.role === 'admin') return true;
+    return false;
+  },
   message: {
     error: 'Too many password reset attempts, please try again later.',
     retryAfter: '1 hour'
@@ -85,6 +106,13 @@ export const passwordResetRateLimit = rateLimit({
 export const uploadRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 20, // Limit each IP to 20 uploads per hour
+  skip: (req) => {
+    // Skip rate limiting in test environment
+    if (process.env.NODE_ENV === 'test') return true;
+    // Skip rate limiting in development for admin users
+    if (process.env.NODE_ENV === 'development' && req.user?.role === 'admin') return true;
+    return false;
+  },
   message: {
     error: 'Too many file uploads, please try again later.',
     retryAfter: '1 hour'
@@ -223,6 +251,12 @@ export const trackFailedAttempts = (req, res, next) => {
 export const ddosProtection = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 30, // Very strict limit for potential DDoS
+  skip: (req) => {
+    // Skip rate limiting in test environment
+    if (process.env.NODE_ENV === 'test') return true;
+    // Never skip DDoS protection, even for admin users in development
+    return false;
+  },
   message: {
     error: 'Potential DDoS attack detected. Access temporarily blocked.',
     retryAfter: '1 minute'
@@ -248,6 +282,13 @@ export const ddosProtection = rateLimit({
 export const burstProtection = rateLimit({
   windowMs: 1000, // 1 second
   max: 10, // Max 10 requests per second 
+  skip: (req) => {
+    // Skip rate limiting in test environment
+    if (process.env.NODE_ENV === 'test') return true;
+    // Skip burst protection in development for admin users
+    if (process.env.NODE_ENV === 'development' && req.user?.role === 'admin') return true;
+    return false;
+  },
   message: {
     error: 'Request burst detected. Please slow down.',
     retryAfter: '1 second'

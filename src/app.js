@@ -1,27 +1,27 @@
 import express from "express";
 const app = express();
-import { connectDB, connectCloudinary } from "../src/config/db.js";
+import { connectDB } from "./config/db.js";
 import mongoose from "mongoose";
-import { notFound, errorHandler } from "../src/middlewares/middleware.js";
-import { securityMiddleware, cookieSecurityMiddleware, clearInsecureCookies } from "../src/middlewares/securityHeaders.middleware.js";
+import { notFound, errorHandler } from "./middlewares/middleware.js";
+import { securityMiddleware, cookieSecurityMiddleware, clearInsecureCookies } from "./middlewares/securityHeaders.middleware.js";
 import { 
   sanitizeInputs, 
   detectSQLInjection 
-} from "../src/middlewares/inputValidation.middleware.js";
+} from "./middlewares/inputValidation.middleware.js";
 import { 
   noSQLSanitizer, 
   detectNoSQLInjection, 
   validateMongoQueries,
   logDatabaseQueries,
   preventEnumeration 
-} from "../src/middlewares/databaseSecurity.middleware.js";
+} from "./middlewares/databaseSecurity.middleware.js";
 import { 
   generalRateLimit, 
   progressiveSlowDown, 
   adaptiveRateLimit,
   trackFailedAttempts,
   ddosProtection 
-} from "../src/middlewares/rateLimiting.middleware.js";
+} from "./middlewares/rateLimiting.middleware.js";
 import logger from "morgan";
 import cookieParser from "cookie-parser";
 
@@ -29,7 +29,7 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 dotenv.config();
 connectDB();
-connectCloudinary();
+
 
 // Apply security middleware first
 app.set('trust proxy', 1);

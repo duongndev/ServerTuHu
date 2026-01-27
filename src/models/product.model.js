@@ -62,6 +62,13 @@ const productSchema = new mongoose.Schema(
   }
 );
 
+// Indexes for search and filtering
+productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ category_id: 1 });
+productSchema.index({ isFeatured: 1 });
+productSchema.index({ isOnSale: 1 });
+productSchema.index({ createdAt: -1 });
+
 // Middleware cập nhật thời gian
 productSchema.pre("save", function (next) {
   this.updatedAt = Date.now();

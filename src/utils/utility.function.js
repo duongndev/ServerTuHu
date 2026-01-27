@@ -13,19 +13,23 @@ const newToken = async (user) => {
     },
     process.env.JWT_ACCESS_SECRET,
     {
-      expiresIn: "15m",
+      expiresIn: "1d",
     }
   );
 };
 
 // Tạo refresh token (thời gian dài)
 const newRefreshToken = async (user) => {
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET environment variable is required');
+  }
+  
   return await jwt.sign(
     { 
       id: user._id, 
       type: 'refresh'
     },
-    process.env.JWT_REFRESH_SECRET || process.env.JWT_ACCESS_SECRET + '_refresh',
+    process.env.JWT_REFRESH_SECRET,
     {
       expiresIn: "7d", // 7 ngày
     }
@@ -39,7 +43,10 @@ const verifyToken = async (token) => {
 
 // Verify refresh token
 const verifyRefreshToken = async (token) => {
-  return await jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_ACCESS_SECRET + '_refresh');
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET environment variable is required');
+  }
+  return await jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 };
 
 const hashPassword = async (password) => {

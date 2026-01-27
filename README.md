@@ -1,73 +1,145 @@
 # 🍞 TuHuBread Server
 
-Backend REST API cho ứng dụng bán bánh mì TuHuBread, xây dựng với Node.js/Express, MongoDB Atlas, và triển khai qua Docker.
+Backend REST API cho ứng dụng bán bánh mì TuHuBread, xây dựng với Node.js/Express, MongoDB Atlas và Docker.
 
-**Điểm nhấn**
-- Xác thực JWT với Access/Refresh token, phân quyền và quản lý session an toàn.
-- Quản lý sản phẩm, giỏ hàng, đơn hàng, mã giảm giá, phí vận chuyển.
-- Upload ảnh bằng Cloudinary, thông báo qua Firebase FCM và email.
-- Bảo mật: rate limiting, security headers, input sanitization.
+## ✨ Tính năng nổi bật
 
-**Yêu cầu hệ thống**
-- `Node.js` >= `22`
-- `npm` >= `10`
-- `MongoDB Atlas` (đã bật Network Access cho IP/cluster)
+- **🔐 Xác thực & Phân quyền**: JWT với Access/Refresh token, quản lý session an toàn
+- **🛒 Quản lý bán hàng**: Sản phẩm, giỏ hàng, đơn hàng, mã giảm giá, phí vận chuyển
+- **📸 Media & Notifications**: Upload ảnh Cloudinary, thông báo Firebase FCM, email
+- **🛡️ Bảo mật**: Rate limiting, security headers, input sanitization
 
-**Cài đặt nhanh**
-- Clone: `git clone https://github.com/duongndev/ServerTuHu.git && cd ServerTuHu`
-- Cài deps: `npm ci`
-- Tạo env: `cp .env.example .env` và điền các biến chính:
-  - `MONGO_ATLAS_URI`, `MONGO_ATLAS_DB`, `MONGO_ATLAS_USER`, `MONGO_ATLAS_PASS`
-  - `JWT_SECRET`, `SESSION_SECRET`
-  - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-  - `FIREBASE_*` nếu dùng FCM
-- Chạy dev: `npm run dev` (http://localhost:5000)
+## 📋 Yêu cầu hệ thống
 
-**Docker**
-- Build: `docker build -t duongnd202/tuhu-bread:latest .`
-- Run: `docker run --env-file .env -p 5000:5000 duongnd202/tuhu-bread:latest`
-- Healthcheck: `GET /health` trong container phải trả 200.
+- **Node.js** >= 22
+- **npm** >= 10
+- **MongoDB Atlas** (Network Access đã được bật)
 
-**Docker Compose (Atlas)**
-- File `docker-compose.yml` sử dụng service `app`:
-  - `env_file: .env` (đọc Atlas URI và các secrets)
-  - `ports: "5000:5000"`, `restart: always`
-- Chạy: `docker-compose up --build -d`
+## 🚀 Cài đặt nhanh
 
-**CI/CD (GitHub Actions → Docker Hub)**
-- Workflow `ci-cd.yml`:
-  - Thiết lập `Node.js 22` cho job test.
-  - Build và push image bằng Docker Buildx.
-- Secrets cần thiết trên repository:
-  - `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
-  - `MONGO_ATLAS_URI`, `MONGO_ATLAS_DB`, `MONGO_ATLAS_USER`, `MONGO_ATLAS_PASS`
-- Tag image:
-  - `duongnd202/tuhu-bread:latest`
-  - `duongnd202/tuhu-bread:<GIT_SHA>`
+```bash
+# Clone repository
+git clone https://github.com/duongndev/ServerTuHu.git && cd ServerTuHu
 
-**Cấu trúc dự án**
-- `server.js` – entry point Express
-- `src/config` – cấu hình DB/Cloudinary/Firebase
-- `src/middlewares` – middleware bảo mật, validation, session
-- `src/models` – schema Mongoose
-- `src/routes` – định nghĩa API routes
-- `src/controllers` – business logic
-- `src/service` – email, notification
-- `src/utils` – tiện ích tính phí, validate
-- `src/view` – template email/OTP
+# Cài đặt dependencies
+npm ci
 
-**Endpoints quan trọng**
-- `GET /health` – kiểm tra tình trạng server (dùng cho Docker HEALTHCHECK)
+# Cấu hình environment
+cp .env.example .env
+# Chỉnh sửa .env với các biến:
+# - MONGO_ATLAS_URI, MONGO_ATLAS_DB, MONGO_ATLAS_USER, MONGO_ATLAS_PASS
+# - JWT_SECRET, SESSION_SECRET
+# - CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+# - FIREBASE_* (nếu dùng FCM)
 
-**Ghi chú bảo mật & vận hành**
-- Atlas yêu cầu TLS/SSL khi `NODE_ENV=production`.
-- Bật IP Allowlist hoặc dùng `0.0.0.0/0` tạm thời để test.
-- Không commit `.env`; dùng `.env.example` để tham khảo cấu hình.
+# Chạy development server
+npm run dev
+# Server chạy tại http://localhost:5000
+```
 
-**Khắc phục sự cố**
-- Lỗi `jsdom`/`webidl-conversions`: đảm bảo `Node >= 20`; dự án dùng `Node 22`.
-- Cảnh báo CRLF/LF trên Windows: đã cấu hình `.gitattributes` để chuẩn hóa line endings.
-- Kết nối Atlas thất bại: kiểm tra `MONGO_ATLAS_URI` đúng format (có `user:pass@`) hoặc set `MONGO_ATLAS_USER/PASS` riêng; đảm bảo network access đúng.
+## 🐳 Docker
 
-**Giấy phép**
-- Nội bộ dự án; không kèm license công khai.
+### Build & Run
+```bash
+# Build image
+docker build -t duongnd202/tuhu-bread:latest .
+
+# Run container
+docker run --env-file .env -p 5000:5000 duongnd202/tuhu-bread:latest
+```
+
+### Docker Compose
+```bash
+# Sử dụng MongoDB Atlas
+docker-compose up --build -d
+```
+
+**Healthcheck**: `GET /health` phải trả về status 200
+
+## 🔄 CI/CD Pipeline
+
+**GitHub Actions → Docker Hub**
+
+- **Node.js 22** cho test job
+- **Docker Buildx** cho multi-platform build
+- **Auto-tagging**: `latest` và `<GIT_SHA>`
+
+**Required Secrets**:
+- `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
+- `MONGO_ATLAS_*` variables
+
+## 📁 Cấu trúc dự án
+
+```
+src/
+├── config/          # Database, Cloudinary, Firebase config
+├── controllers/     # Business logic handlers
+├── middlewares/     # Security, validation, session middleware
+├── models/          # Mongoose schemas
+├── routes/          # API route definitions
+├── services/        # Email, notification services
+├── utils/           # Utility functions (pricing, validation)
+├── views/           # Email/OTP templates
+└── app.js           # Express app setup
+server.js            # Application entry point
+```
+
+## 🔗 API Endpoints
+
+### Health & System
+- `GET /health` - Server health check (Docker HEALTHCHECK)
+
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/refresh` - Token refresh
+- `POST /api/auth/logout` - User logout
+
+### Products
+- `GET /api/products` - Get all products
+- `GET /api/products/:id` - Get product details
+- `POST /api/products` - Create product (admin)
+- `PUT /api/products/:id` - Update product (admin)
+- `DELETE /api/products/:id` - Delete product (admin)
+
+### Orders
+- `GET /api/orders` - Get user orders
+- `POST /api/orders` - Create new order
+- `GET /api/orders/:id` - Get order details
+
+## 🔒 Bảo mật & Vận hành
+
+- **MongoDB Atlas**: Yêu cầu TLS/SSL trong production
+- **Network Access**: Cấu hình IP Allowlist hoặc `0.0.0.0/0` cho testing
+- **Environment Variables**: Không commit `.env`, sử dụng `.env.example`
+
+## 🛠️ Khắc phục sự cố
+
+### Common Issues
+- **Node.js Version**: Yêu cầu Node >= 22 để tránh lỗi `jsdom`/`webidl-conversions`
+- **Line Endings**: `.gitattributes` đã cấu hình để chuẩn hóa CRLF/LF trên Windows
+- **Atlas Connection**: 
+  - Kiểm tra format `MONGO_ATLAS_URI` (bao gồm `user:pass@`)
+  - Xác nhận Network Access settings
+  - Verify credentials trong `.env`
+
+### Debug Commands
+```bash
+# Kiểm tra Node version
+node --version
+
+# Test connection
+npm run test
+
+# Check logs
+docker logs <container_id>
+```
+
+## 📄 Giấy phép
+
+Dự án nội bộ - không kèm license công khai.
+
+---
+
+**Contact**: [Your Contact Information]  
+**Repository**: https://github.com/duongndev/ServerTuHu

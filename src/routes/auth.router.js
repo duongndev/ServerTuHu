@@ -33,7 +33,7 @@ router.post('/forgot-password', passwordResetRateLimit, burstProtection, forgotP
 router.post('/verify-otp', burstProtection, verifyOTP);
 router.post('/reset-password', passwordResetRateLimit, burstProtection, resetPassword);
 router.post('/update-fcm-token', protect, burstProtection, updateFCMToken);
-router.get('/profile', protect, burstProtection, getProfile);
+router.get('/me', protect, burstProtection, getProfile);
 
 
 export default router;

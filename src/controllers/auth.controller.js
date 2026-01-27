@@ -235,20 +235,24 @@ const register = async (req, res) => {
 
     // Hash password
     const hashedPassword = await hashPassword(password);
-    const newUser = new userModel({ fullName, email, password: hashedPassword });
+    const newUser = new userModel({
+      fullName,
+      email,
+      password: hashedPassword,
+    });
     await newUser.save();
-    
+
     // Log registration
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get("User-Agent") || "Unknown";
     await AuditLog.createLog({
-        userId: newUser._id,
-        action: "REGISTER",
-        details: { email },
-        ipAddress,
-        userAgent,
-        severity: "LOW",
-        status: "SUCCESS",
+      userId: newUser._id,
+      action: "REGISTER",
+      details: { email },
+      ipAddress,
+      userAgent,
+      severity: "LOW",
+      status: "SUCCESS",
     });
 
     return standardResponse(res, 201, {
@@ -273,13 +277,13 @@ const logout = async (req, res) => {
   try {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get("User-Agent") || "Unknown";
-    
+
     // Cookie options must match those used when setting the cookie to ensure deletion
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      path: "/" // Ensure path matches default
+      path: "/", // Ensure path matches default
     };
 
     // 1. Invalidate session in database if user is authenticated
@@ -321,10 +325,10 @@ const logout = async (req, res) => {
 
 const updateFCMToken = async (req, res) => {
   try {
-    const { fcm_token } = req.body;
+    const { fcmToken } = req.body;
     const userId = req.user.id;
 
-    if (!fcm_token) {
+    if (!fcmToken) {
       return standardResponse(res, 400, {
         success: false,
         message: "Please enter FCM Token",
@@ -332,7 +336,7 @@ const updateFCMToken = async (req, res) => {
     }
 
     const user = await userModel
-      .findByIdAndUpdate(userId, { fcmToken: fcm_token }, { new: true })
+      .findByIdAndUpdate(userId, { fcmToken: fcmToken }, { new: true })
       .select("-password");
 
     if (!user) {
@@ -520,9 +524,12 @@ const resetPassword = async (req, res) => {
       success: true,
       message: "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.",
     });
-
   } catch (error) {
-    await logSecurityEvent("PASSWORD_RESET_ERROR", { error: error.message }, req);
+    await logSecurityEvent(
+      "PASSWORD_RESET_ERROR",
+      { error: error.message },
+      req
+    );
     return standardResponse(res, 500, {
       success: false,
       message: error.message,
@@ -532,14 +539,25 @@ const resetPassword = async (req, res) => {
 
 const getProfile = async (req, res) => {
   try {
-    const user = await userModel.findById(req.user.id).select("-password -refreshToken -loginAttempts -isBlocked -isLocked");
+    const user = await userModel.findById(req.user.id);
     if (!user) {
       return standardResponse(res, 404, {
         success: false,
         message: "Không tìm thấy người dùng",
       });
     }
-    return standardResponse(res, 200, { success: true, data: user });
+    return standardResponse(res, 200, {
+      success: true,
+      data: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        status: user.status,
+        lastLogin: user.lastLogin,
+      },
+    });
   } catch (error) {
     return standardResponse(res, 500, {
       success: false,
@@ -582,7 +600,11 @@ const refreshToken = async (req, res) => {
     } catch (err) {
       res.clearCookie("accessToken", cookieOptions);
       res.clearCookie("refreshToken", cookieOptions);
-      await logSecurityEvent("TOKEN_REFRESH_INVALID", { reason: err.message }, req);
+      await logSecurityEvent(
+        "TOKEN_REFRESH_INVALID",
+        { reason: err.message },
+        req
+      );
       return standardResponse(res, 403, {
         success: false,
         message: "Invalid or expired refresh token",
@@ -698,7 +720,11 @@ const refreshToken = async (req, res) => {
     });
   } catch (error) {
     console.error("refreshToken error:", error);
-    await logSecurityEvent("TOKEN_REFRESH_ERROR", { error: error.message }, req);
+    await logSecurityEvent(
+      "TOKEN_REFRESH_ERROR",
+      { error: error.message },
+      req
+    );
     return standardResponse(res, 500, {
       success: false,
       message: "Internal server error",
@@ -793,7 +819,7 @@ const changePassword = async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      path: "/"
+      path: "/",
     };
     res.clearCookie("accessToken", cookieOptions);
     res.clearCookie("refreshToken", cookieOptions);

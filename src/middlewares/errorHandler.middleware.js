@@ -8,18 +8,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import AuditLog from '../models/auditLog.model.js';
 import { logSecurityEvent } from '../utils/utility.function.js';
+import logger from '../utils/logger.util.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure error log directory exists
+// Legacy error log path for backward compatibility
 const errorLogDir = path.join(__dirname, '../../logs');
-try {
-  await fs.access(errorLogDir);
-} catch {
-  await fs.mkdir(errorLogDir, { recursive: true });
-}
-
 const errorLogPath = path.join(errorLogDir, 'error.log');
 
 // Error types and their corresponding status codes
@@ -51,7 +46,6 @@ class AppError extends Error {
 // Log error to file
 const logError = async (error, req = null) => {
   const errorEntry = {
-    timestamp: new Date().toISOString(),
     message: error.message,
     stack: error.stack,
     statusCode: error.statusCode || 500,
@@ -66,7 +60,14 @@ const logError = async (error, req = null) => {
     query: req?.query || null
   };
   
-  const logLine = JSON.stringify(errorEntry) + '\n';
+  // Use new logger utility
+  await logger.error('Application Error', errorEntry);
+  
+  // Also maintain backward compatibility with legacy log file
+  const logLine = JSON.stringify({
+    timestamp: new Date().toISOString(),
+    ...errorEntry
+  }) + '\n';
   
   try {
     await fs.appendFile(errorLogPath, logLine);
@@ -74,11 +75,7 @@ const logError = async (error, req = null) => {
     console.error('Failed to write error log:', err);
   }
   
-  // Also log to console
-  console.error('[ERROR]', errorEntry.timestamp, errorEntry.message);
-  if (process.env.NODE_ENV === 'development') {
-    console.error(error.stack);
-  }
+  // Console logging is now handled by logger utility
 };
 
 // Sanitize request body for logging
