@@ -59,6 +59,20 @@ const createOrder = async (req, res) => {
     } = req.body;
     const user_id = req.user._id;
 
+    // Check for duplicate order (idempotency check)
+    // Find order created by this user in last 5 seconds
+    const duplicateCheck = await orderModel.findOne({
+        user_id,
+        createdAt: { $gt: new Date(Date.now() - 5000) }
+    }).select('items');
+
+    if (duplicateCheck && items && items.length === duplicateCheck.items.length) {
+         return standardResponse(res, 429, {
+            success: false,
+            message: "Bạn đang thao tác quá nhanh, đơn hàng trước đó đang được xử lý.",
+         });
+    }
+
     // Start transaction
     await session.startTransaction();
     // Validate đầu vào

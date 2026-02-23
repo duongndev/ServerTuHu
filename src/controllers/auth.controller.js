@@ -141,19 +141,20 @@ const login = async (req, res) => {
       });
     }
 
-    // Reset login attempts on successful login
-    if (user.loginAttempts > 0) {
-      await user.resetLoginAttempts();
-    }
-
-    // Update last login info
-    await user.updateLastLogin(ipAddress, userAgent);
+    // Reset login attempts and update last login info
+    // We update the user instance directly to ensure the response contains the latest data
+    // and to perform a single DB write (via save) instead of multiple updateOne calls.
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+    user.lastLogin = new Date();
+    user.ipAddress = ipAddress;
+    user.userAgent = userAgent;
 
     // Generate tokens
     const accessToken = await newToken(user);
     const nextRefreshToken = await newRefreshToken(user);
 
-    // Save refresh token to user
+    // Save refresh token and other updates to user
     user.refreshToken = nextRefreshToken;
     await user.save();
 

@@ -299,12 +299,43 @@ export const burstProtection = rateLimit({
     logSecurityEvent('BURST_PROTECTION_TRIGGERED', {
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      endpoint: req.originalUrl
+      endpoint: req.originalUrl,
+      limit: 'burst'
     }, req);
     
     res.status(429).json({
       error: 'Request burst detected. Please slow down.',
       retryAfter: '1 second'
+    });
+  }
+});
+
+// Order creation rate limiter (Strict: 1 request per 5 seconds)
+export const orderCreationRateLimit = rateLimit({
+  windowMs: 5000, // 5 seconds
+  max: 1, // Max 1 request per 5 seconds
+  skip: (req) => {
+    if (process.env.NODE_ENV === 'test') return true;
+    return false;
+  },
+  message: {
+    error: 'Bạn đang thao tác quá nhanh, vui lòng đợi 5 giây trước khi đặt đơn hàng tiếp theo.',
+    retryAfter: '5 seconds'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logSecurityEvent('ORDER_CREATION_RATE_LIMIT_EXCEEDED', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      endpoint: req.originalUrl,
+      limit: 'order_creation'
+    }, req);
+    
+    res.status(429).json({
+      success: false,
+      message: 'Bạn đang thao tác quá nhanh, vui lòng đợi 5 giây trước khi đặt đơn hàng tiếp theo.',
+      retryAfter: '5 seconds'
     });
   }
 });
