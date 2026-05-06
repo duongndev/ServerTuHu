@@ -10,6 +10,7 @@ import {
 import { protect, authorize } from '../middlewares/auth.middleware.js';
 import { burstProtection } from '../middlewares/rateLimiting.middleware.js';
 
+router.get('/', burstProtection, getAllCategories);
 router.get('/all', burstProtection, getAllCategories);
 router.get('/view/:id', burstProtection, getCategoryById);
 router.post('/create', protect, authorize('admin'), burstProtection, createCategory);

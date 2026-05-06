@@ -9,14 +9,39 @@ import {
 } from "../utils/validate.function.js";
 import { uploadImage, deleteImage } from "../service/upload.service.js"; // Import service
 import AuditLog from "../models/auditLog.model.js";
+import cacheService from "../service/cache.service.js";
+import {
+  parsePagination,
+  buildProductFilters,
+  buildSortOptions,
+  buildSearchQuery,
+  formatPaginationResponse,
+  transformProducts,
+  validateFilters
+} from "../utils/productFilters.utils.js";
 
 // Tạo sản phẩm mới
 const createProduct = asyncHandler(async (req, res) => {
-  const { name, description, price, category_id } = req.body;
+  const { 
+    name, 
+    description, 
+    price, 
+    category_id, 
+    ingredients, 
+    allergens, 
+    nutritionInfo, 
+    weight, 
+    size, 
+    shelfLife, 
+    storageCondition, 
+    discountPrice, 
+    tags, 
+    slug 
+  } = req.body;
 
   // Validate required fields
-  if (!name || !description || !price || !category_id) {
-    return standardResponse(res, 400, { success: false, message: "Vui lòng nhập đầy đủ thông tin" });
+  if (!name || !description || !price || !category_id || !weight || !shelfLife) {
+    return standardResponse(res, 400, { success: false, message: "Vui lòng nhập đầy đủ thông tin bắt buộc (tên, mô tả, giá, danh mục, trọng lượng, hạn sử dụng)" });
   }
 
   // Validate category existence
@@ -44,17 +69,36 @@ const createProduct = asyncHandler(async (req, res) => {
   const isFeatured = req.body.isFeatured === 'true' || req.body.isFeatured === true;
   const isOnSale = req.body.isOnSale === 'true' || req.body.isOnSale === true;
 
+  // Parse arrays and objects
+  const parsedIngredients = ingredients ? (Array.isArray(ingredients) ? ingredients : JSON.parse(ingredients)) : [];
+  const parsedAllergens = allergens ? (Array.isArray(allergens) ? allergens : JSON.parse(allergens)) : [];
+  const parsedNutritionInfo = nutritionInfo ? (typeof nutritionInfo === 'object' ? nutritionInfo : JSON.parse(nutritionInfo)) : {};
+  const parsedTags = tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : [];
+
   const newProduct = new productModel({ 
     name, 
     description, 
     price, 
     category_id, 
     imgUrl, 
+    ingredients: parsedIngredients,
+    allergens: parsedAllergens,
+    nutritionInfo: parsedNutritionInfo,
+    weight,
+    size: size || 'M',
+    shelfLife,
+    storageCondition: storageCondition || 'Nhiệt độ phòng',
+    discountPrice,
     isFeatured, 
-    isOnSale 
+    isOnSale,
+    tags: parsedTags,
+    slug: slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
   });
   
   await newProduct.save();
+
+  // Clear relevant caches
+  cacheService.clearAllProductCaches();
 
   await AuditLog.createLog({
     userId: req.user?.id,
@@ -65,6 +109,8 @@ const createProduct = asyncHandler(async (req, res) => {
       productName: name,
       price: price,
       categoryId: category_id,
+      weight,
+      shelfLife,
       isFeatured,
       isOnSale
     },
@@ -86,7 +132,22 @@ const createProduct = asyncHandler(async (req, res) => {
 // Cập nhật sản phẩm
 const updateProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, description, price, category_id, ingredients, discountPrice } = req.body;
+  const { 
+    name, 
+    description, 
+    price, 
+    category_id, 
+    ingredients, 
+    allergens, 
+    nutritionInfo, 
+    weight, 
+    size, 
+    shelfLife, 
+    storageCondition, 
+    discountPrice, 
+    tags, 
+    slug 
+  } = req.body;
 
   if (category_id) {
     const category = await findCategoryOr404(categoryModel, category_id, res);
@@ -113,21 +174,54 @@ const updateProduct = asyncHandler(async (req, res) => {
     ? (req.body.isOnSale === 'true' || req.body.isOnSale === true) 
     : existingProduct.isOnSale;
 
+  const isAvailable = req.body.isAvailable !== undefined 
+    ? (req.body.isAvailable === 'true' || req.body.isAvailable === true) 
+    : existingProduct.isAvailable;
+
+  // Parse arrays and objects if provided
+  const parsedIngredients = ingredients !== undefined 
+    ? (Array.isArray(ingredients) ? ingredients : JSON.parse(ingredients || '[]')) 
+    : existingProduct.ingredients;
+  const parsedAllergens = allergens !== undefined 
+    ? (Array.isArray(allergens) ? allergens : JSON.parse(allergens || '[]')) 
+    : existingProduct.allergens;
+  const parsedNutritionInfo = nutritionInfo !== undefined 
+    ? (typeof nutritionInfo === 'object' ? nutritionInfo : JSON.parse(nutritionInfo || '{}')) 
+    : existingProduct.nutritionInfo;
+  const parsedTags = tags !== undefined 
+    ? (Array.isArray(tags) ? tags : JSON.parse(tags || '[]')) 
+    : existingProduct.tags;
+
+  const updateData = {
+    name: name !== undefined ? name : existingProduct.name,
+    description: description !== undefined ? description : existingProduct.description,
+    price: price !== undefined ? price : existingProduct.price,
+    category_id: category_id !== undefined ? category_id : existingProduct.category_id,
+    ingredients: parsedIngredients,
+    allergens: parsedAllergens,
+    nutritionInfo: parsedNutritionInfo,
+    weight: weight !== undefined ? weight : existingProduct.weight,
+    size: size !== undefined ? size : existingProduct.size,
+    shelfLife: shelfLife !== undefined ? shelfLife : existingProduct.shelfLife,
+    storageCondition: storageCondition !== undefined ? storageCondition : existingProduct.storageCondition,
+    discountPrice: discountPrice !== undefined ? discountPrice : existingProduct.discountPrice,
+    isOnSale,
+    isFeatured,
+    isAvailable,
+    tags: parsedTags,
+    slug: slug !== undefined ? slug : existingProduct.slug,
+    imgUrl
+  };
+
   const updatedProduct = await productModel.findByIdAndUpdate(
     id,
-    { 
-      name, 
-      description, 
-      price, 
-      category_id, 
-      ingredients, 
-      isOnSale, 
-      isFeatured, 
-      discountPrice, 
-      imgUrl 
-    },
+    updateData,
     { new: true }
   );
+
+  // Clear relevant caches
+  cacheService.clearAllProductCaches();
+  cacheService.clearProductCache(id);
 
   await AuditLog.createLog({
     userId: req.user?.id,
@@ -141,7 +235,8 @@ const updateProduct = asyncHandler(async (req, res) => {
       categoryId: category_id,
       imageUpdated: !!req.file,
       isFeatured,
-      isOnSale
+      isOnSale,
+      weight: weight !== undefined ? weight : existingProduct.weight
     },
     ipAddress: req.ip || req.connection.remoteAddress,
     userAgent: req.get('User-Agent') || 'Unknown',
@@ -170,6 +265,10 @@ const deleteProduct = asyncHandler(async (req, res) => {
   }
 
   await productModel.findByIdAndDelete(id);
+
+  // Clear relevant caches
+  cacheService.clearAllProductCaches();
+  cacheService.clearProductCache(id);
 
   await AuditLog.createLog({
     userId: req.user?.id,
@@ -200,40 +299,51 @@ const deleteProduct = asyncHandler(async (req, res) => {
 // LIST API (getAllProducts, getProductById, etc.) remain UNCHANGED as they don't upload/delete files.
 // But we need to include them to keep the file complete.
 
-// Lấy danh sách sản phẩm (có phân trang)
+// Lấy danh sách sản phẩm (có phân trang và lọc)
 const getAllProducts = asyncHandler(async (req, res) => {
-  let { page = 1, limit = 10 } = req.query;
-  page = Math.max(1, parseInt(page) || 1);
-  limit = Math.min(100, Math.max(1, parseInt(limit) || 10)); // Max 100
-  
-  const skip = (page - 1) * limit;
+  // Validate filters
+  const filterErrors = validateFilters(req.query);
+  if (filterErrors.length > 0) {
+    return standardResponse(res, 400, { 
+      success: false, 
+      message: "Tham số lọc không hợp lệ", 
+      data: { errors: filterErrors } 
+    });
+  }
+
+  // Parse pagination
+  const { page, limit, skip } = parsePagination(req.query);
+
+  // Build filters and sort
+  const filters = buildProductFilters(req.query);
+  const sortOptions = buildSortOptions(req.query);
+
+  // Apply search if provided
+  const finalQuery = req.query.search 
+    ? buildSearchQuery(req.query.search, filters)
+    : filters;
 
   const [total, products] = await Promise.all([
-    productModel.countDocuments(),
-    productModel.find()
+    productModel.countDocuments(finalQuery),
+    productModel.find(finalQuery)
+      .select('name description price discountPrice imgUrl isOnSale averageRating totalReviews category_id weight size allergens tags createdAt')
       .populate('category_id', 'name')
-      .sort({ createdAt: -1 })
+      .sort(sortOptions)
       .skip(skip)
       .limit(limit)
       .lean()
   ]);
 
-  const transformedProducts = products.map(p => ({
-    ...p,
-    category: p.category_id?.name || null,
-    category_id: p.category_id?._id || p.category_id
-  }));
+  const transformedProducts = transformProducts(products);
 
   return standardResponse(res, 200, {
     success: true,
     message: "Lấy danh sách sản phẩm thành công",
     data: transformedProducts,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+    ...formatPaginationResponse(total, page, limit, {
+      filters: Object.keys(req.query).filter(key => !['page', 'limit', 'sortBy', 'sortOrder'].includes(key)),
+      searchTerm: req.query.search
+    })
   });
 });
 
@@ -243,18 +353,25 @@ const getProductById = asyncHandler(async (req, res) => {
   let { relatedLimit = 4 } = req.query;
   relatedLimit = Math.max(1, parseInt(relatedLimit) || 4);
 
-  const product = await productModel.findOne({ _id: id })
-    .populate('category_id', 'name')
-    .lean();
+  // Try to get from cache first
+  let product = await cacheService.getProductById(id);
 
   if (!product) {
-    return standardResponse(res, 404, { success: false, message: "Không tìm thấy sản phẩm" });
+    // If not in cache, get from database
+    product = await productModel.findOne({ _id: id })
+      .populate('category_id', 'name')
+      .lean();
+
+    if (!product) {
+      return standardResponse(res, 404, { success: false, message: "Không tìm thấy sản phẩm" });
+    }
   }
 
   const relatedProducts = await productModel
     .find({ 
       category_id: product.category_id?._id || product.category_id,
-      _id: { $ne: id }
+      _id: { $ne: id },
+      isAvailable: true
     })
     .select('_id name imgUrl price isOnSale isFeatured discountPrice totalReviews averageRating')
     .sort({ createdAt: -1 })
@@ -272,6 +389,7 @@ const getProductById = asyncHandler(async (req, res) => {
     success: true,
     message: "Lấy sản phẩm thành công",
     data,
+    cached: !!product._cached
   });
 });
 
@@ -328,26 +446,20 @@ const searchProductByName = asyncHandler(async (req, res) => {
     return standardResponse(res, 400, { success: false, message: "Từ khóa tìm kiếm phải có ít nhất 2 ký tự" });
   }
 
-  const pageNum = Math.max(1, parseInt(page) || 1);
-  const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 10));
-  const skip = (pageNum - 1) * limitNum;
+  // Parse pagination
+  const { page: pageNum, limit: limitNum, skip } = parsePagination({ page, limit });
 
-  const searchQuery = {
-    $and: [
-      { isAvailable: true },
-      { name: { $regex: searchTerm, $options: "i" } }
-    ]
-  };
+  // Build filters and sort
+  const filters = buildProductFilters(req.query);
+  const sortOptions = buildSortOptions({ sortBy, sortOrder });
 
-  const sortOptions = {};
-  const validSortFields = ['name', 'price', 'averageRating', 'createdAt'];
-  const sortField = validSortFields.includes(sortBy) ? sortBy : 'name';
-  sortOptions[sortField] = sortOrder === 'desc' ? -1 : 1;
+  // Build search query
+  const searchQuery = buildSearchQuery(searchTerm, filters);
 
   const [totalCount, products] = await Promise.all([
     productModel.countDocuments(searchQuery),
     productModel.find(searchQuery)
-      .select('name description price discountPrice imgUrl isOnSale averageRating totalReviews category_id')
+      .select('name description price discountPrice imgUrl isOnSale averageRating totalReviews category_id weight size allergens tags')
       .populate('category_id', 'name')
       .sort(sortOptions)
       .skip(skip)
@@ -363,43 +475,26 @@ const searchProductByName = asyncHandler(async (req, res) => {
     });
   }
 
-  const transformedProducts = products.map(p => ({
-    ...p,
-    category: p.category_id?.name || null,
-    category_id: p.category_id?._id || p.category_id
-  }));
+  const transformedProducts = transformProducts(products);
 
   return standardResponse(res, 200, {
     success: true,
     message: `Tìm thấy ${totalCount} sản phẩm phù hợp`,
     data: {
       products: transformedProducts,
-      pagination: {
-        total: totalCount,
-        page: pageNum,
-        totalPages: Math.ceil(totalCount / limitNum),
-        limit: limitNum,
-      },
-      searchTerm
-    }
+      ...formatPaginationResponse(totalCount, pageNum, limitNum)
+    },
+    searchTerm
   });
 });
 
 // Lấy sản phẩm nổi bật
 const getProductsFeatured = asyncHandler(async (req, res) => {
-  let { page = 1, limit = 10 } = req.query;
-  page = Math.max(1, parseInt(page) || 1);
+  let { limit = 10 } = req.query;
   limit = Math.max(1, parseInt(limit) || 10);
-  const skip = (page - 1) * limit;
 
-  const [total, products] = await Promise.all([
-    productModel.countDocuments({ isFeatured: true }),
-    productModel.find({ isFeatured: true })
-      .populate('category_id', 'name')
-      .skip(skip)
-      .limit(limit)
-      .lean()
-  ]);
+  // Try to get from cache first
+  let products = await cacheService.getFeaturedProducts(limit);
 
   if (!products.length) {
     return standardResponse(res, 404, { success: false, message: "Không tìm thấy sản phẩm nổi bật nào" });
@@ -415,30 +510,17 @@ const getProductsFeatured = asyncHandler(async (req, res) => {
     success: true,
     message: "Lấy sản phẩm nổi bật thành công",
     data: transformedProducts,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+    cached: true
   });
 });
 
 // Lấy sản phẩm đang giảm giá
 const getProductsSale = asyncHandler(async (req, res) => {
-  let { page = 1, limit = 10 } = req.query;
-  page = Math.max(1, parseInt(page) || 1);
+  let { limit = 10 } = req.query;
   limit = Math.max(1, parseInt(limit) || 10);
-  const skip = (page - 1) * limit;
 
-  const [total, products] = await Promise.all([
-    productModel.countDocuments({ isOnSale: true }),
-    productModel.find({ isOnSale: true })
-      .populate('category_id', 'name')
-      .skip(skip)
-      .limit(limit)
-      .lean()
-  ]);
+  // Try to get from cache first
+  let products = await cacheService.getSaleProducts(limit);
 
   const transformedProducts = products.map(p => ({
       ...p,
@@ -450,36 +532,17 @@ const getProductsSale = asyncHandler(async (req, res) => {
     success: true,
     message: "Lấy sản phẩm giảm giá thành công",
     data: transformedProducts,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+    cached: true
   });
 });
 
 // Lấy sản phẩm mới (7 ngày gần nhất)
 const getProductsNew = asyncHandler(async (req, res) => {
-  let { page = 1, limit = 10 } = req.query;
-  page = Math.max(1, parseInt(page) || 1);
+  let { limit = 10 } = req.query;
   limit = Math.max(1, parseInt(limit) || 10);
-  
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  
-  const newProductFilter = { createdAt: { $gte: sevenDaysAgo } };
-  const skip = (page - 1) * limit;
-  
-  const [total, products] = await Promise.all([
-    productModel.countDocuments(newProductFilter),
-    productModel.find(newProductFilter)
-      .populate('category_id', 'name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean()
-  ]);
+
+  // Try to get from cache first
+  let products = await cacheService.getNewProducts(limit);
   
   const transformedProducts = products.map(p => ({
     ...p,
@@ -489,14 +552,9 @@ const getProductsNew = asyncHandler(async (req, res) => {
 
   return standardResponse(res, 200, {
     success: true,
-    message: total > 0 ? "Lấy sản phẩm mới thành công" : "Không có sản phẩm mới trong 7 ngày gần nhất",
+    message: products.length > 0 ? "Lấy sản phẩm mới thành công" : "Không có sản phẩm mới trong 7 ngày gần nhất",
     data: transformedProducts,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+    cached: true
   });
 });
 
