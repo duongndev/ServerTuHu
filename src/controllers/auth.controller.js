@@ -538,6 +538,50 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Find user
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      return standardResponse(res, 404, {
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
+    }
+    
+    // Generate new OTP
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    
+    // Save OTP
+    await OTPModel.create({
+      email,
+      otp,
+      expiresAt: otpExpiry,
+    });
+    
+    // Send OTP via email
+    await sendOTPEmail(email, otp);
+    
+    return standardResponse(res, 200, {
+      success: true,
+      message: "Mã OTP đã được gửi lại. Vui lòng kiểm tra email.",
+    });
+  } catch (error) {
+    await logSecurityEvent(
+      "RESEND_OTP_ERROR",
+      { error: error.message },
+      req
+    );
+    return standardResponse(res, 500, {
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const getProfile = async (req, res) => {
   try {
     const user = await userModel.findById(req.user.id);

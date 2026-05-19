@@ -281,7 +281,7 @@ export const ddosProtection = rateLimit({
 // Burst protection for specific endpoints
 export const burstProtection = rateLimit({
   windowMs: 1000, // 1 second
-  max: 10, // Max 10 requests per second 
+  max: 1000, // Max 1000 requests per second 
   skip: (req) => {
     // Skip rate limiting in test environment
     if (process.env.NODE_ENV === 'test') return true;

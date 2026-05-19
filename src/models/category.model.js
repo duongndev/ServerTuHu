@@ -1,4 +1,4 @@
-import mongoose from "mongoose";    
+import mongoose from "mongoose";
 const categorySchema = new mongoose.Schema({
     name: {
         type: String,
@@ -34,13 +34,12 @@ const categorySchema = new mongoose.Schema({
 
 // Indexes for search and filtering
 categorySchema.index({ name: 'text' });
-categorySchema.index({ slug: 1 });
 categorySchema.index({ isActive: 1, displayOrder: 1 });
 categorySchema.index({ createdAt: -1 });
 
 categorySchema.pre('save', function (next) {
     this.updatedAt = Date.now();
-    
+
     // Auto-generate slug from name if not provided
     if (!this.slug && this.name) {
         this.slug = this.name
@@ -50,7 +49,7 @@ categorySchema.pre('save', function (next) {
             .replace(/-+/g, '-')
             .trim();
     }
-    
+
     next();
 });
 

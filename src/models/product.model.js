@@ -25,7 +25,7 @@ const productSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       validate: {
-        validator: function(v) {
+        validator: function (v) {
           return !v || v < this.price;
         },
         message: 'Giá khuyến mãi phải nhỏ hơn giá gốc'
@@ -122,27 +122,26 @@ productSchema.index({ category_id: 1, isAvailable: 1 });
 productSchema.index({ isFeatured: 1, isOnSale: 1 });
 productSchema.index({ averageRating: -1 });
 productSchema.index({ price: 1 });
-productSchema.index({ slug: 1 });
 
 // Middleware cập nhật thời gian
 productSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
-  
+
   // Validation cho discountPrice
   if (this.discountPrice && this.discountPrice >= this.price) {
     return next(new Error('Giá khuyến mãi phải nhỏ hơn giá gốc'));
   }
-  
+
   // Validation cho shelfLife
   if (this.shelfLife && this.shelfLife < 1) {
     return next(new Error('Hạn sử dụng phải lớn hơn 0'));
   }
-  
+
   // Validation cho weight
   if (this.weight && this.weight < 1) {
     return next(new Error('Trọng lượng phải lớn hơn 0'));
   }
-  
+
   // Validation cho nutritionInfo
   if (this.nutritionInfo) {
     const nutritionFields = ['calories', 'protein', 'fat', 'carbs', 'fiber', 'sodium'];
@@ -152,24 +151,24 @@ productSchema.pre("save", function (next) {
       }
     }
   }
-  
+
   next();
 });
 
 // Static method để kiểm tra sản phẩm còn hạn sử dụng
-productSchema.statics.isFresh = function(createdAt, shelfLifeHours) {
+productSchema.statics.isFresh = function (createdAt, shelfLifeHours) {
   const expiryTime = new Date(createdAt.getTime() + shelfLifeHours * 60 * 60 * 1000);
   return new Date() < expiryTime;
 };
 
 // Virtual field để kiểm tra sản phẩm còn tươi không
-productSchema.virtual('isFresh').get(function() {
+productSchema.virtual('isFresh').get(function () {
   if (!this.shelfLife) return true;
   return this.constructor.isFresh(this.createdAt, this.shelfLife);
 });
 
 // Virtual field để lấy thời gian hết hạn
-productSchema.virtual('expiresAt').get(function() {
+productSchema.virtual('expiresAt').get(function () {
   if (!this.shelfLife) return null;
   const expiryTime = new Date(this.createdAt.getTime() + this.shelfLife * 60 * 60 * 1000);
   return expiryTime;

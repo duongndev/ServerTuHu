@@ -13,8 +13,7 @@ import {
 } from '../controllers/dashboard.controller.js';
 
 // Tất cả routes dashboard chỉ dành cho admin
-router.use(protect);
-router.use(authorize('admin'));
+router.use(protect, authorize('admin'));
 
 /**
  * @route   GET /api/dashboard/overview

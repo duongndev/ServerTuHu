@@ -27,7 +27,6 @@ import {
 } from "../middlewares/rateLimiting.middleware.js";
 
 router.get('/', burstProtection, queryValidationRules.pagination, queryValidationRules.search, handleValidationErrors, getAllProducts);
-router.get('/all', burstProtection, queryValidationRules.pagination, queryValidationRules.search, handleValidationErrors, getAllProducts);
 router.get('/search', burstProtection, searchProductByName);
 router.get('/featured', burstProtection, getProductsFeatured);
 router.get('/sale', burstProtection, getProductsSale);
